@@ -589,11 +589,12 @@ class ICLObservationGroupEncoder(Module):
         outputs = []
         # Deterministic order since self.observation_group_shapes is OrderedDict
         for obs_group in self.observation_group_shapes:
-            print(obs_group)
             # pass through encoder
             outputs.append(
                 self.nets[obs_group].forward(inputs[obs_group])
             )
+        context_obs = self.nets["obs"].forward(prompt_obs)
+        print(context_obs.data.shape)
         exit()
         return torch.cat(outputs, dim=-1)
 
