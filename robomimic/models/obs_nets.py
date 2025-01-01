@@ -1330,7 +1330,6 @@ class ICL_MIMO_Transformer(Module):
                 for each tensor.
         """
         for obs_group in self.input_obs_group_shapes:
-            # print("Joker: ", obs_group)
             for k in self.input_obs_group_shapes[obs_group]:
                 # first two dimensions should be [B, T] for inputs
                 if inputs[obs_group][k] is None:
@@ -1338,6 +1337,8 @@ class ICL_MIMO_Transformer(Module):
                 assert inputs[obs_group][k].ndim - 2 == len(self.input_obs_group_shapes[obs_group][k])
 
         inputs = inputs.copy()
+        print("Joker: ", inputs)
+        exit()
 
         transformer_encoder_outputs = None
         transformer_inputs = TensorUtils.time_distributed(
