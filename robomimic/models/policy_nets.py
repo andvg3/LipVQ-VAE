@@ -1501,7 +1501,7 @@ class TransformerGMMActorNetwork(ICLTransformerActorNetwork):
         return msg
     
 
-class ICLTransformerGMMActorNetwork(TransformerActorNetwork):
+class ICLTransformerGMMActorNetwork(ICLTransformerActorNetwork):
     """
     A Transformer GMM policy network that predicts sequences of action distributions from observation 
     sequences (assumed to be frame stacked from previous observations).
