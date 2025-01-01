@@ -1550,13 +1550,23 @@ class ICL_MIMO_Transformer(Module):
         inputs = inputs.copy()
 
         transformer_encoder_outputs = None
-        transformer_inputs = TensorUtils.icl_time_distributed(
+        obs, context_obs, context_actions = TensorUtils.icl_time_distributed(
             inputs, self.nets["encoder"], inputs_as_kwargs=True
         )
-        assert transformer_inputs.ndim == 3  # [B, T, D]
+        assert obs.ndim == 3  # [B, T, D]
 
         if transformer_encoder_outputs is None:
-            transformer_embeddings = self.input_embedding(transformer_inputs)
+            obs_embeddings = self.input_embedding(obs)
+            context_obs_embeddings = self.input_embedding(context_obs)
+            context_actions_embeddings = self.input_embedding(context_actions)
+
+            bs, timestep, D = obs_embeddings.shape
+            # Step 1: Interleave context_obs and context_actions
+            interleaved_context = torch.stack([context_obs_embeddings, context_actions_embeddings], dim=2)  # [bs, timestep, 2, D]
+            interleaved_context = interleaved_context.view(bs, -1, D)  # [bs, 2 * timestep, D]
+
+            # Step 2: Concatenate interleaved context with obs
+            transformer_embeddings = torch.cat([interleaved_context, obs_embeddings], dim=1)  # [bs, 3 * timestep, D]
             # pass encoded sequences through transformer
             transformer_encoder_outputs = self.nets["transformer"].forward(transformer_embeddings)
 
