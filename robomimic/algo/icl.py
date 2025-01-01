@@ -835,8 +835,13 @@ class ICLTransformer_GMM(ICLTransformer):
         )  
         # Split the observation into halves
         mid = batch["obs"]["lang_emb"].shape[0] // 2
-        context_obs, train_obs = batch["obs"][:mid], batch["obs"][mid:]
-        context_actions, train_actions = batch["actions"][:mid], batch["actions"][mid:]
+        # Split observations
+        context_obs = {key: value[:mid] for key, value in batch["obs"].items()}
+        train_obs = {key: value[mid:] for key, value in batch["obs"].items()}
+
+        # Split actions
+        context_actions = {key: value[:mid] for key, value in batch["actions"].items()}
+        train_actions = {key: value[mid:] for key, value in batch["actions"].items()}
 
         dists = self.nets["policy"].forward_train(
             obs_dict=train_obs,
