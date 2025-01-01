@@ -638,9 +638,9 @@ class ICLObservationGroupEncoder(Module):
         action_output_shape = self.output_shape()
         self.action_network = nn.Sequential(
             nn.Linear(action_input_shape, 64),
-            feature_activation(),
+            nn.GeLU(),
             nn.Linear(64, 128),
-            feature_activation(),
+            nn.GeLU(),
             nn.Linear(128, action_output_shape)
         )
 
