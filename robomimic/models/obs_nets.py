@@ -543,7 +543,7 @@ class ICLObservationGroupEncoder(Module):
                 obs_modality2: dict
                     ...
         """
-        super(ObservationGroupEncoder, self).__init__()
+        super(ICLObservationGroupEncoder, self).__init__()
 
         # type checking
         assert isinstance(observation_group_shapes, OrderedDict)
