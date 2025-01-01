@@ -682,9 +682,9 @@ class ICLObservationGroupEncoder(Module):
         context_obs = self.nets["obs"].forward(prompt_obs)
         context_obs = torch.cat([context_obs], dim=-1)
 
+        print(prompt_actions[0])
+
         context_actions = self.action_network(prompt_actions)
-        print(context_actions.data.shape)
-        exit()
         return obs, context_obs, context_actions
 
     def output_shape(self):
