@@ -834,7 +834,7 @@ class ICLTransformer_GMM(ICLTransformer):
             msg="Error: expect temporal dimension of obs batch to match transformer context length {}".format(self.context_length),
         )  
         # Split the observation into halves
-        mid = len(batch["obs"]["lang_emb"].shape[0]) // 2
+        mid = batch["obs"]["lang_emb"].shape[0] // 2
         context_obs, train_obs = batch["obs"][:mid], batch["obs"][mid:]
         context_actions, train_actions = batch["actions"][:mid], batch["actions"][mid:]
 
