@@ -1181,7 +1181,7 @@ class ICL_MIMO_Transformer(Module):
             transformer_block_output_dropout (float): dropout probability for final outputs for each transformer block
             encoder_kwargs (dict): observation encoder config
         """
-        super(MIMO_Transformer, self).__init__()
+        super(ICL_MIMO_Transformer, self).__init__()
         
         assert isinstance(input_obs_group_shapes, OrderedDict)
         assert np.all([isinstance(input_obs_group_shapes[k], OrderedDict) for k in input_obs_group_shapes])
