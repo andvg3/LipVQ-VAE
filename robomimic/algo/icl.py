@@ -833,7 +833,7 @@ class ICLTransformer_GMM(ICLTransformer):
             dim=1, 
             msg="Error: expect temporal dimension of obs batch to match transformer context length {}".format(self.context_length),
         )     
-        print(batch["actions"])
+        print(batch["actions"].data.shape)
         exit()
         dists = self.nets["policy"].forward_train(
             obs_dict=batch["obs"], 
