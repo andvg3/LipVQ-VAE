@@ -499,6 +499,127 @@ class ObservationGroupEncoder(Module):
         return msg
 
 
+class ICLObservationGroupEncoder(Module):
+    """
+    This class allows networks to encode multiple observation dictionaries into a single
+    flat, concatenated vector representation. It does this by assigning each observation
+    dictionary (observation group) an @ObservationEncoder object.
+
+    The class takes a dictionary of dictionaries, @observation_group_shapes.
+    Each key corresponds to a observation group (e.g. 'obs', 'subgoal', 'goal')
+    and each OrderedDict should be a map between modalities and 
+    expected input shapes (e.g. { 'image' : (3, 120, 160) }).
+    """
+    def __init__(
+        self,
+        observation_group_shapes,
+        feature_activation=nn.ReLU,
+        encoder_kwargs=None,
+    ):
+        """
+        Args:
+            observation_group_shapes (OrderedDict): a dictionary of dictionaries.
+                Each key in this dictionary should specify an observation group, and
+                the value should be an OrderedDict that maps modalities to
+                expected shapes.
+
+            feature_activation: non-linearity to apply after each obs net - defaults to ReLU. Pass
+                None to apply no activation.
+
+            encoder_kwargs (dict or None): If None, results in default encoder_kwargs being applied. Otherwise, should
+                be nested dictionary containing relevant per-modality information for encoder networks.
+                Should be of form:
+
+                obs_modality1: dict
+                    feature_dimension: int
+                    core_class: str
+                    core_kwargs: dict
+                        ...
+                        ...
+                    obs_randomizer_class: str
+                    obs_randomizer_kwargs: dict
+                        ...
+                        ...
+                obs_modality2: dict
+                    ...
+        """
+        super(ObservationGroupEncoder, self).__init__()
+
+        # type checking
+        assert isinstance(observation_group_shapes, OrderedDict)
+        assert np.all([isinstance(observation_group_shapes[k], OrderedDict) for k in observation_group_shapes])
+        
+        self.observation_group_shapes = observation_group_shapes
+
+        # create an observation encoder per observation group
+        self.nets = nn.ModuleDict()
+        for obs_group in self.observation_group_shapes:
+            self.nets[obs_group] = obs_encoder_factory(
+                obs_shapes=self.observation_group_shapes[obs_group],
+                feature_activation=feature_activation,
+                encoder_kwargs=encoder_kwargs,
+            )
+
+    def forward(self, **inputs):
+        """
+        Process each set of inputs in its own observation group.
+
+        Args:
+            inputs (dict): dictionary that maps observation groups to observation
+                dictionaries of torch.Tensor batches that agree with 
+                @self.observation_group_shapes. All observation groups in
+                @self.observation_group_shapes must be present, but additional
+                observation groups can also be present. Note that these are specified
+                as kwargs for ease of use with networks that name each observation
+                stream in their forward calls.
+
+        Returns:
+            outputs (torch.Tensor): flat outputs of shape [B, D]
+        """
+
+        # Process the prompt
+        prompt_obs = inputs["prompt"]["obs"]
+        prompt_actions = inputs["prompt"]["action"]
+        print(prompt_obs, prompt_actions)
+        exit()
+
+        # ensure all observation groups we need are present
+        assert set(self.observation_group_shapes.keys()).issubset(inputs), "{} does not contain all observation groups {}".format(
+            list(inputs.keys()), list(self.observation_group_shapes.keys())
+        )
+
+        outputs = []
+        # Deterministic order since self.observation_group_shapes is OrderedDict
+        for obs_group in self.observation_group_shapes:
+            # pass through encoder
+            outputs.append(
+                self.nets[obs_group].forward(inputs[obs_group])
+            )
+
+        return torch.cat(outputs, dim=-1)
+
+    def output_shape(self):
+        """
+        Compute the output shape of this encoder.
+        """
+        feat_dim = 0
+        for obs_group in self.observation_group_shapes:
+            # get feature dimension of these keys
+            feat_dim += self.nets[obs_group].output_shape()[0]
+        return [feat_dim]
+
+    def __repr__(self):
+        """Pretty print network."""
+        header = '{}'.format(str(self.__class__.__name__))
+        msg = ''
+        for k in self.observation_group_shapes:
+            msg += '\n'
+            indent = ' ' * 4
+            msg += textwrap.indent("group={}\n{}".format(k, self.nets[k]), indent)
+        msg = header + '(' + msg + '\n)'
+        return msg
+
+
 class MIMO_MLP(Module):
     """
     Extension to MLP to accept multiple observation dictionaries as input and
@@ -1194,7 +1315,7 @@ class ICL_MIMO_Transformer(Module):
         self.params = nn.ParameterDict()
 
         # Encoder for all observation groups.
-        self.nets["encoder"] = ObservationGroupEncoder(
+        self.nets["encoder"] = ICLObservationGroupEncoder(
             observation_group_shapes=input_obs_group_shapes,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
@@ -1338,16 +1459,10 @@ class ICL_MIMO_Transformer(Module):
 
         inputs = inputs.copy()
 
-        # Process the prompt
-        prompt_obs = inputs["prompt"]["obs"]
-        prompt_actions = inputs["prompt"]["action"]
-
         transformer_encoder_outputs = None
         transformer_inputs = TensorUtils.time_distributed(
             inputs, self.nets["encoder"], inputs_as_kwargs=True
         )
-        print(transformer_inputs.data.shape)
-        exit()
         assert transformer_inputs.ndim == 3  # [B, T, D]
 
         if transformer_encoder_outputs is None:
