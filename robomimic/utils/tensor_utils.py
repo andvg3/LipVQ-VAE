@@ -958,3 +958,37 @@ def time_distributed(inputs, op, activation=None, inputs_as_kwargs=False, inputs
         outputs = map_tensor(outputs, activation)
     outputs = reshape_dimensions(outputs, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
     return outputs
+
+def icl_time_distributed(inputs, op, activation=None, inputs_as_kwargs=False, inputs_as_args=False, **kwargs):
+    """
+    Apply function @op to all tensors in nested dictionary or list or tuple @inputs in both the
+    batch (B) and time (T) dimension, where the tensors are expected to have shape [B, T, ...].
+    Will do this by reshaping tensors to [B * T, ...], passing through the op, and then reshaping
+    outputs to [B, T, ...].
+
+    Args:
+        inputs (list or tuple or dict): a possibly nested dictionary or list or tuple with tensors
+            of leading dimensions [B, T, ...]
+        op: a layer op that accepts inputs
+        activation: activation to apply at the output
+        inputs_as_kwargs (bool): whether to feed input as a kwargs dict to the op
+        inputs_as_args (bool) whether to feed input as a args list to the op
+        kwargs (dict): other kwargs to supply to the op
+
+    Returns:
+        outputs (dict or list or tuple): new nested dict-list-tuple with tensors of leading dimension [B, T].
+    """
+    batch_size, seq_len = flatten_nested_dict_list(inputs)[0][1].shape[:2]
+    inputs = join_dimensions(inputs, 0, 1)
+    if inputs_as_kwargs:
+        obs, context_obs, context_actions = op(**inputs, **kwargs)
+    elif inputs_as_args:
+        obs, context_obs, context_actions = op(*inputs, **kwargs)
+    else:
+        obs, context_obs, context_actions = op(inputs, **kwargs)
+
+    if activation is not None:
+        obs = map_tensor(obs, activation)
+        context_obs = map_tensor(context_obs, activation)
+    outputs = reshape_dimensions(outputs, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
+    return outputs

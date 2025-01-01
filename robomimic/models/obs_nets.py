@@ -596,9 +596,7 @@ class ICLObservationGroupEncoder(Module):
         context_obs = self.nets["obs"].forward(prompt_obs)
         obs = torch.cat(outputs, dim=-1)
         context_obs = torch.cat([context_obs], dim=-1)
-        print(context_obs.data.shape, obs.data.shape, prompt_actions.data.shape)
-        exit()
-        return obs
+        return obs, context_obs, prompt_actions
 
     def output_shape(self):
         """
@@ -1474,9 +1472,11 @@ class ICL_MIMO_Transformer(Module):
 
         transformer_outputs = transformer_encoder_outputs
         # apply decoder to each timestep of sequence to get a dictionary of outputs
+        print("Input: ", transformer_outputs.data.shape)
         transformer_outputs = TensorUtils.time_distributed(
             transformer_outputs, self.nets["decoder"]
         )
+        print("Output: ", transformer_outputs.data.shape)
         transformer_outputs["transformer_encoder_outputs"] = transformer_encoder_outputs
         return transformer_outputs
 
