@@ -832,12 +832,16 @@ class ICLTransformer_GMM(ICLTransformer):
             size=(self.context_length), 
             dim=1, 
             msg="Error: expect temporal dimension of obs batch to match transformer context length {}".format(self.context_length),
-        )     
-        print(batch["actions"].data.shape)
-        exit()
+        )  
+        # Split the observation into halves
+        mid = len(batch["obs"].shape[0]) // 2
+        context_obs, train_obs = batch["obs"][:mid], batch["obs"][mid:]
+        context_actions, train_actions = batch["actions"][:mid], batch["actions"][mid:]
+
         dists = self.nets["policy"].forward_train(
-            obs_dict=batch["obs"], 
-            actions=None,
+            obs_dict=train_obs,
+            context_obs=context_obs,
+            actions=context_actions,
             goal_dict=batch["goal_obs"],
             low_noise_eval=False,
         )
@@ -860,7 +864,7 @@ class ICLTransformer_GMM(ICLTransformer):
                 component_distribution=component_distribution,
             )
 
-        log_probs = dists.log_prob(batch["actions"])
+        log_probs = dists.log_prob(train_actions)
 
         predictions = OrderedDict(
             log_probs=log_probs,

@@ -1632,7 +1632,7 @@ class ICLTransformerGMMActorNetwork(ICLTransformerActorNetwork):
             logits=(self.num_modes,),
         )
 
-    def forward_train(self, obs_dict, actions=None, goal_dict=None, low_noise_eval=None):
+    def forward_train(self, obs_dict, context_obs, actions=None, goal_dict=None, low_noise_eval=None):
         """
         Return full GMM distribution, which is useful for computing
         quantities necessary at train-time, like log-likelihood, KL 
@@ -1650,7 +1650,7 @@ class ICLTransformerGMMActorNetwork(ICLTransformerActorNetwork):
             mod = list(obs_dict.keys())[0]
             goal_dict = TensorUtils.unsqueeze_expand_at(goal_dict, size=obs_dict[mod].shape[1], dim=1)
         if self._is_prompt_conditioned:
-            prompt_dict = {"test": []}
+            prompt_dict = {"obs": context_obs, "action": actions}
         forward_kwargs = dict(obs=obs_dict, goal=goal_dict, prompt=prompt_dict)
 
         outputs = ICL_MIMO_Transformer.forward(self, **forward_kwargs)

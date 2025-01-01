@@ -1337,6 +1337,11 @@ class ICL_MIMO_Transformer(Module):
                 assert inputs[obs_group][k].ndim - 2 == len(self.input_obs_group_shapes[obs_group][k])
 
         inputs = inputs.copy()
+
+        # Process the prompt
+        prompt_obs = inputs["prompt"]["obs"]
+        prompt_actions = inputs["prompt"]["action"]
+
         transformer_encoder_outputs = None
         transformer_inputs = TensorUtils.time_distributed(
             inputs, self.nets["encoder"], inputs_as_kwargs=True
