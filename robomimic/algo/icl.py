@@ -43,8 +43,6 @@ def algo_config_to_class(algo_config):
     rnn_enabled = algo_config.rnn.enabled
     transformer_enabled = algo_config.transformer.enabled
 
-    print(gaussian_enabled, gmm_enabled, vae_enabled, transformer_enabled)
-    exit()
     if gaussian_enabled:
         if rnn_enabled:
             raise NotImplementedError
@@ -810,7 +808,7 @@ class ICLTransformer_GMM(ICLTransformer):
         assert self.algo_config.transformer.enabled
 
         self.nets = nn.ModuleDict()
-        self.nets["policy"] = PolicyNets.TransformerGMMActorNetwork(
+        self.nets["policy"] = PolicyNets.ICLTransformerGMMActorNetwork(
             obs_shapes=self.obs_shapes,
             goal_shapes=self.goal_shapes,
             ac_dim=self.ac_dim,
