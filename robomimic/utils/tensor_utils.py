@@ -990,5 +990,9 @@ def icl_time_distributed(inputs, op, activation=None, inputs_as_kwargs=False, in
     if activation is not None:
         obs = map_tensor(obs, activation)
         context_obs = map_tensor(context_obs, activation)
-    outputs = reshape_dimensions(outputs, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
-    return outputs
+    obs = reshape_dimensions(obs, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
+    context_obs = reshape_dimensions(context_obs, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
+    
+    print(obs.data.shape, context_obs.data.shape)
+    exit()
+    return obs
