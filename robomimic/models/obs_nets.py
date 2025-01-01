@@ -1341,13 +1341,13 @@ class ICL_MIMO_Transformer(Module):
         # Process the prompt
         prompt_obs = inputs["prompt"]["obs"]
         prompt_actions = inputs["prompt"]["action"]
-        print(prompt_actions)
-        exit()
 
         transformer_encoder_outputs = None
         transformer_inputs = TensorUtils.time_distributed(
             inputs, self.nets["encoder"], inputs_as_kwargs=True
         )
+        print(transformer_inputs.data.shape)
+        exit()
         assert transformer_inputs.ndim == 3  # [B, T, D]
 
         if transformer_encoder_outputs is None:
