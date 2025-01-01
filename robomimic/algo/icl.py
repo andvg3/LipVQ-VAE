@@ -688,6 +688,8 @@ class ICLTransformer(ICL):
         Creates networks and places them into @self.nets.
         """
         assert self.algo_config.transformer.enabled
+        print("This class")
+        exit()
 
         self.nets = nn.ModuleDict()
         self.nets["policy"] = PolicyNets.TransformerActorNetwork(
