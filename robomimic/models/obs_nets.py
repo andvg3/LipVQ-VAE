@@ -580,8 +580,6 @@ class ICLObservationGroupEncoder(Module):
         # Process the prompt
         prompt_obs = inputs["prompt"]["obs"]
         prompt_actions = inputs["prompt"]["action"]
-        print(prompt_obs, prompt_actions)
-        exit()
 
         # ensure all observation groups we need are present
         assert set(self.observation_group_shapes.keys()).issubset(inputs), "{} does not contain all observation groups {}".format(
@@ -591,11 +589,12 @@ class ICLObservationGroupEncoder(Module):
         outputs = []
         # Deterministic order since self.observation_group_shapes is OrderedDict
         for obs_group in self.observation_group_shapes:
+            print(obs_group)
             # pass through encoder
             outputs.append(
                 self.nets[obs_group].forward(inputs[obs_group])
             )
-
+        exit()
         return torch.cat(outputs, dim=-1)
 
     def output_shape(self):
