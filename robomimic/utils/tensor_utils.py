@@ -991,10 +991,12 @@ def icl_time_distributed(inputs, op, activation=None, inputs_as_kwargs=False, in
         obs = map_tensor(obs, activation)
         context_obs = map_tensor(context_obs, activation)
         context_actions = map_tensor(context_actions, activation)
+
     obs = reshape_dimensions(obs, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
     context_obs = reshape_dimensions(context_obs, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
-    context_actions = reshape_dimensions(context_obs, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
+    context_actions = reshape_dimensions(context_actions, begin_axis=0, end_axis=0, target_dims=(batch_size, seq_len))
     
+    bs, timestep, D = obs.shape
     # Step 1: Interleave context_obs and context_actions
     interleaved_context = torch.stack([context_obs, context_actions], dim=2)  # [bs, timestep, 2, D]
     interleaved_context = interleaved_context.view(bs, -1, D)  # [bs, 2 * timestep, D]
