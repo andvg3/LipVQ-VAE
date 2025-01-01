@@ -840,8 +840,7 @@ class ICLTransformer_GMM(ICLTransformer):
         train_obs = {key: value[mid:] for key, value in batch["obs"].items()}
 
         # Split actions
-        context_actions = {key: value[:mid] for key, value in batch["actions"].items()}
-        train_actions = {key: value[mid:] for key, value in batch["actions"].items()}
+        context_actions, train_actions = batch["actions"][:mid], batch["actions"][mid:]
 
         dists = self.nets["policy"].forward_train(
             obs_dict=train_obs,
