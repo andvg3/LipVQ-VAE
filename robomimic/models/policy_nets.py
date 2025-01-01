@@ -1225,7 +1225,7 @@ class ICLTransformerActorNetwork(ICL_MIMO_Transformer):
         self._is_prompt_conditioned = True
 
         output_shapes = self._get_output_shapes()
-        super(TransformerActorNetwork, self).__init__(
+        super(ICLTransformerActorNetwork, self).__init__(
             input_obs_group_shapes=observation_group_shapes,
             output_shapes=output_shapes,
             transformer_embed_dim=transformer_embed_dim,
