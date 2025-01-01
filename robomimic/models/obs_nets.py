@@ -586,6 +586,7 @@ class ICLObservationGroupEncoder(Module):
     def __init__(
         self,
         observation_group_shapes,
+        action_input_shape,
         feature_activation=nn.ReLU,
         encoder_kwargs=None,
     ):
@@ -633,6 +634,16 @@ class ICLObservationGroupEncoder(Module):
                 encoder_kwargs=encoder_kwargs,
             )
 
+        # Create encoder for action
+        action_output_shape = self.output_shape()
+        self.action_network = nn.Sequential(
+            nn.Linear(action_input_shape, 64),
+            feature_activation(),
+            nn.Linear(64, 128),
+            feature_activation(),
+            nn.Linear(128, action_output_shape)
+        )
+
     def forward(self, **inputs):
         """
         Process each set of inputs in its own observation group.
@@ -671,7 +682,10 @@ class ICLObservationGroupEncoder(Module):
         context_obs = self.nets["obs"].forward(prompt_obs)
         context_obs = torch.cat([context_obs], dim=-1)
 
-        return obs, context_obs, prompt_actions
+        context_actions = self.action_network(prompt_actions)
+        print(context_actions.data.shape)
+        exit()
+        return obs, context_obs, context_actions
 
     def output_shape(self):
         """
@@ -1392,6 +1406,7 @@ class ICL_MIMO_Transformer(Module):
         # Encoder for all observation groups.
         self.nets["encoder"] = ICLObservationGroupEncoder(
             observation_group_shapes=input_obs_group_shapes,
+            action_input_shape=12,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
         )

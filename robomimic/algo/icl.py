@@ -708,6 +708,7 @@ class ICLTransformer(ICL):
         self.context_length = self.algo_config.transformer.context_length
         self.supervise_all_steps = self.algo_config.transformer.supervise_all_steps
         self.pred_future_acs = self.algo_config.transformer.pred_future_acs
+        self.action_input_shape = self.algo_config.transformer.action_input_shape
         if self.pred_future_acs:
             assert self.supervise_all_steps is True
 

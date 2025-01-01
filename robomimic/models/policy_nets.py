@@ -1443,7 +1443,7 @@ class TransformerGMMActorNetwork(ICLTransformerActorNetwork):
 
         forward_kwargs = dict(obs=obs_dict, goal=goal_dict)
 
-        outputs = MIMO_Transformer.forward(self, **forward_kwargs)
+        outputs = ICL_MIMO_Transformer.forward(self, **forward_kwargs)
         
         means = outputs["mean"]
         scales = outputs["scale"]
