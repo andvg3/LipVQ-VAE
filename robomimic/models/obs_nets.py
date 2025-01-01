@@ -1341,6 +1341,8 @@ class ICL_MIMO_Transformer(Module):
         # Process the prompt
         prompt_obs = inputs["prompt"]["obs"]
         prompt_actions = inputs["prompt"]["action"]
+        print(prompt_actions)
+        exit()
 
         transformer_encoder_outputs = None
         transformer_inputs = TensorUtils.time_distributed(
