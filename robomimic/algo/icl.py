@@ -870,6 +870,9 @@ class ICLTransformer_GMM(ICLTransformer):
 
         log_probs = dists.log_prob(train_actions)
 
+        print("Shape: ", log_probs.data.shape)
+        exit()
+
         predictions = OrderedDict(
             log_probs=log_probs,
         )

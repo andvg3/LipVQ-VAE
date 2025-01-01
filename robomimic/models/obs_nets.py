@@ -382,6 +382,79 @@ class ObservationDecoder(Module):
             msg += textwrap.indent(")", ' ' * 4)
         msg = header + '(' + msg + '\n)'
         return msg
+    
+
+class ICLObservationDecoder(Module):
+    """
+    Module that can generate observation outputs by modality. Inputs are assumed
+    to be flat (usually outputs from some hidden layer). Each observation output
+    is generated with a linear layer from these flat inputs. Subclass this
+    module in order to implement more complex schemes for generating each
+    modality.
+    """
+    def __init__(
+        self,
+        decode_shapes,
+        input_feat_dim,
+    ):
+        """
+        Args:
+            decode_shapes (OrderedDict): a dictionary that maps observation key to
+                expected shape. This is used to generate output modalities from the
+                input features.
+
+            input_feat_dim (int): flat input dimension size
+        """
+        super(ObservationDecoder, self).__init__()
+
+        # important: sort observation keys to ensure consistent ordering of modalities
+        assert isinstance(decode_shapes, OrderedDict)
+        self.obs_shapes = OrderedDict()
+        for k in decode_shapes:
+            self.obs_shapes[k] = decode_shapes[k]
+
+        self.input_feat_dim = input_feat_dim
+        self._create_layers()
+
+    def _create_layers(self):
+        """
+        Create a linear layer to predict each modality.
+        """
+        self.nets = nn.ModuleDict()
+        for k in self.obs_shapes:
+            layer_out_dim = int(np.prod(self.obs_shapes[k]))
+            self.nets[k] = nn.Linear(self.input_feat_dim, layer_out_dim)
+
+    def output_shape(self, input_shape=None):
+        """
+        Returns output shape for this module, which is a dictionary instead
+        of a list since outputs are dictionaries.
+        """
+        return { k : list(self.obs_shapes[k]) for k in self.obs_shapes }
+
+    def forward(self, feats):
+        """
+        Predict each modality from input features, and reshape to each modality's shape.
+        """
+        output = {}
+        for k in self.obs_shapes:
+            out = self.nets[k](feats)
+            output[k] = out.reshape(-1, *self.obs_shapes[k])
+        return output
+
+    def __repr__(self):
+        """Pretty print network."""
+        header = '{}'.format(str(self.__class__.__name__))
+        msg = ''
+        for k in self.obs_shapes:
+            msg += textwrap.indent('\nKey(\n', ' ' * 4)
+            indent = ' ' * 8
+            msg += textwrap.indent("name={}\nshape={}\n".format(k, self.obs_shapes[k]), indent)
+            msg += textwrap.indent("modality={}\n".format(ObsUtils.OBS_KEYS_TO_MODALITIES[k]), indent)
+            msg += textwrap.indent("net=({})\n".format(self.nets[k]), indent)
+            msg += textwrap.indent(")", ' ' * 4)
+        msg = header + '(' + msg + '\n)'
+        return msg
 
 
 class ObservationGroupEncoder(Module):
