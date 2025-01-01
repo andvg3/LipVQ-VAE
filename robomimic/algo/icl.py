@@ -43,6 +43,7 @@ def algo_config_to_class(algo_config):
     rnn_enabled = algo_config.rnn.enabled
     transformer_enabled = algo_config.transformer.enabled
 
+    print(gaussian_enabled, gmm_enabled, vae_enabled, transformer_enabled)
     if gaussian_enabled:
         if rnn_enabled:
             raise NotImplementedError
@@ -688,8 +689,6 @@ class ICLTransformer(ICL):
         Creates networks and places them into @self.nets.
         """
         assert self.algo_config.transformer.enabled
-        print("This class")
-        exit()
 
         self.nets = nn.ModuleDict()
         self.nets["policy"] = PolicyNets.TransformerActorNetwork(
