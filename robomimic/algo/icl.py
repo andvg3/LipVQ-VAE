@@ -44,6 +44,7 @@ def algo_config_to_class(algo_config):
     transformer_enabled = algo_config.transformer.enabled
 
     print(gaussian_enabled, gmm_enabled, vae_enabled, transformer_enabled)
+    exit()
     if gaussian_enabled:
         if rnn_enabled:
             raise NotImplementedError
