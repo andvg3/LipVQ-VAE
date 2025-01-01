@@ -1337,7 +1337,8 @@ class ICL_MIMO_Transformer(Module):
                 assert inputs[obs_group][k].ndim - 2 == len(self.input_obs_group_shapes[obs_group][k])
 
         inputs = inputs.copy()
-        print("Joker: ", inputs)
+        for key in inputs["obs"]:
+            print(key, inputs["obs"][key].data.shape)
         exit()
 
         transformer_encoder_outputs = None
