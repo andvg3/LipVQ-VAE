@@ -1442,7 +1442,7 @@ class ICL_MIMO_Transformer(Module):
             embed_dim=transformer_embed_dim,
             num_layers=transformer_num_layers,
             num_heads=transformer_num_heads,
-            context_length=transformer_context_length,
+            context_length=transformer_context_length * 3, # multiplying by 3 because of extra tokens for context embeddings
             causal=transformer_causal,
             attn_dropout=transformer_attn_dropout,
             block_output_dropout=transformer_block_output_dropout,
