@@ -1474,9 +1474,7 @@ class ICL_MIMO_Transformer(Module):
 
         transformer_outputs = transformer_encoder_outputs
         # apply decoder to each timestep of sequence to get a dictionary of outputs
-        print("Input")
-        for key in transformer_outputs:
-            print(key, transformer_outputs[key].data.shape)
+        print("Input", transformer_outputs.data.shape)
 
         transformer_outputs = TensorUtils.time_distributed(
             transformer_outputs, self.nets["decoder"]
