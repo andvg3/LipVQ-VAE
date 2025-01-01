@@ -1330,8 +1330,7 @@ class ICL_MIMO_Transformer(Module):
                 for each tensor.
         """
         for obs_group in self.input_obs_group_shapes:
-            print(obs_group)
-            exit()
+            # print("Joker: ", obs_group)
             for k in self.input_obs_group_shapes[obs_group]:
                 # first two dimensions should be [B, T] for inputs
                 if inputs[obs_group][k] is None:
