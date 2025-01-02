@@ -779,15 +779,7 @@ class ICLRolloutPolicy(object):
         if goal is not None:
             goal = self._prepare_observation(goal, batched=batched)
         
-        # Inspect obs
-        print("********************************")
-        for key in ob:
-            print(key, ob[key].data.shape)
-        print("-------------------------------")
-        for key in context_batch:
-            print(key, context_batch[key].data.shape)
-        exit()
-        ac = self.policy.get_action(obs_dict=ob, goal_dict=goal)
+        ac = self.policy.get_action(obs_dict=ob, context_batch=context_batch, goal_dict=goal)
         if not batched:
             ac = ac[0]
         ac = TensorUtils.to_numpy(ac)

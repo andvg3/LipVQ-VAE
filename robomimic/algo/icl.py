@@ -772,7 +772,7 @@ class ICLTransformer(ICL):
             predictions["actions"] = predictions["actions"][:, -1, :]
         return predictions
 
-    def get_action(self, obs_dict, goal_dict=None):
+    def get_action(self, obs_dict, context_batch, goal_dict=None):
         """
         Get policy action outputs.
         Args:
@@ -782,6 +782,15 @@ class ICLTransformer(ICL):
             action (torch.Tensor): action tensor
         """
         assert not self.nets.training
+        # Inspect obs
+        print("********************************")
+        for key in obs_dict:
+            print(key, obs_dict[key].data.shape)
+        print("-------------------------------")
+        for key in context_batch:
+            for subkey in context_batch[key]:
+                print(key, subkey, context_batch[key][subkey].data.shape)
+        exit()
 
         output = self.nets["policy"](obs_dict, actions=None, goal_dict=goal_dict)
 
