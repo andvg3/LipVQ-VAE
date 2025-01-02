@@ -526,10 +526,18 @@ def icl_run_rollout(
             policy_ob = batchify_obs(ob_dict)
             ac = policy(ob=policy_ob, goal=goal_dict, batched=True) #, return_ob=True)
         else:
-            for key in context_batch:
-                print(context_batch[key])
             policy_ob = ob_dict
-            ac = policy(ob=policy_ob, goal=goal_dict, context_obs=context_batch) #, return_ob=True)
+            for key in ob_dict:
+                print(key)
+                for k1 in ob_dict[key]:
+                    print(k1, ob_dict[key][k1].data.shape)
+            print("Context batch")
+            for key in context_batch:
+                print(key)
+                for k1 in context_batch[key]:
+                    print(k1, context_batch[key][k1].data.shape)
+            exit()
+            ac = policy(ob=policy_ob, goal=goal_dict) #, return_ob=True)
 
         # play action
         ob_dict, r, done, info = env.step(ac)
