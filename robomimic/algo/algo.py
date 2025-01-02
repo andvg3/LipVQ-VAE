@@ -780,8 +780,10 @@ class ICLRolloutPolicy(object):
             goal = self._prepare_observation(goal, batched=batched)
         
         # Inspect obs
+        print("********************************")
         for key in ob:
             print(key, ob[key].data.shape)
+        print("-------------------------------")
         for key in context_batch:
             print(key, context_batch[key].data.shape)
         exit()
