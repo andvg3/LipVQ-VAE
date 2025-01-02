@@ -528,9 +528,7 @@ def icl_run_rollout(
         else:
             policy_ob = ob_dict
             for key in ob_dict:
-                print(key)
-                for k1 in ob_dict[key]:
-                    print(k1, ob_dict[key][k1].data.shape)
+                print(key, ob_dict[key].data.shape)
             print("Context batch")
             for key in context_batch:
                 print(key)
