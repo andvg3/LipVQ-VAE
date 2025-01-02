@@ -705,3 +705,107 @@ class RolloutPolicy(object):
                     ac_dict[key] = rot
             ac = AcUtils.action_dict_to_vector(ac_dict, action_keys=action_keys)
         return ac
+
+
+class ICLRolloutPolicy(object):
+    """
+    Wraps @Algo object to make it easy to run policies in a rollout loop.
+    """
+    def __init__(self, policy, obs_normalization_stats=None, action_normalization_stats=None, lang_encoder=None):
+        """
+        Args:
+            policy (Algo instance): @Algo object to wrap to prepare for rollouts
+
+            obs_normalization_stats (dict): optionally pass a dictionary for observation
+                normalization. This should map observation keys to dicts
+                with a "mean" and "std" of shape (1, ...) where ... is the default
+                shape for the observation.
+        """
+        self.policy = policy
+        self.obs_normalization_stats = obs_normalization_stats
+        self.action_normalization_stats = action_normalization_stats
+        self._ep_lang_emb = None
+        self.lang_encoder = lang_encoder
+
+    def start_episode(self, lang=None):
+        """
+        Prepare the policy to start a new rollout.
+        """
+        if self.lang_encoder is not None:
+            self._ep_lang_emb = TensorUtils.to_numpy(self.lang_encoder.get_lang_emb(lang))
+        self.policy.set_eval()
+        self.policy.reset()
+
+    def _prepare_observation(self, ob, batched=False):
+        """
+        Prepare raw observation dict from environment for policy.
+
+        Args:
+            ob (dict): single observation dictionary from environment (no batch dimension, 
+                and np.array values for each key)
+
+            batched (bool): whether the input is already batched
+        """
+        if self.obs_normalization_stats is not None:
+            ob = ObsUtils.normalize_dict(ob, obs_normalization_stats=self.obs_normalization_stats)
+        assert batched is False
+        if self._ep_lang_emb is not None:
+            if len(ob["robot0_eef_pos"].shape) == 1:
+                ob["lang_emb"] = self._ep_lang_emb
+            else:
+                ob["lang_emb"] = np.repeat(self._ep_lang_emb[np.newaxis], len(ob["robot0_eef_pos"]), axis=0)
+        ob = TensorUtils.to_tensor(ob)
+        if not batched:
+            ob = TensorUtils.to_batch(ob)
+        ob = TensorUtils.to_device(ob, self.policy.device)
+        ob = TensorUtils.to_float(ob)
+        return ob
+
+    def __repr__(self):
+        """Pretty print network description"""
+        return self.policy.__repr__()
+
+    def __call__(self, ob, context_batch, goal=None, batched=False):
+        """
+        Produce action from raw observation dict (and maybe goal dict) from environment.
+
+        Args:
+            ob (dict): single observation dictionary from environment (no batch dimension, 
+                and np.array values for each key)
+            goal (dict): goal observation
+            batched (bool): whether the input is already batched
+        """
+        ob = self._prepare_observation(ob, batched=batched)
+        if goal is not None:
+            goal = self._prepare_observation(goal, batched=batched)
+        
+        # Inspect obs
+        for key in ob:
+            print(key, ob[key])
+        for key in context_batch:
+            print(key, context_batch[key])
+        exit()
+        ac = self.policy.get_action(obs_dict=ob, goal_dict=goal)
+        if not batched:
+            ac = ac[0]
+        ac = TensorUtils.to_numpy(ac)
+        if self.action_normalization_stats is not None:
+            action_keys = self.policy.global_config.train.action_keys
+            action_shapes = {k: self.action_normalization_stats[k]["offset"].shape[1:] for k in self.action_normalization_stats}
+            ac_dict = AcUtils.vector_to_action_dict(ac, action_shapes=action_shapes, action_keys=action_keys)
+            ac_dict = ObsUtils.unnormalize_dict(ac_dict, normalization_stats=self.action_normalization_stats)
+            action_config = self.policy.global_config.train.action_config
+            for key, value in ac_dict.items():
+                this_format = action_config[key].get("format", None)
+                if this_format == "rot_6d":
+                    rot_6d = torch.from_numpy(value).unsqueeze(0)
+                    conversion_format = action_config[key].get("convert_at_runtime", "rot_axis_angle")
+                    if conversion_format == "rot_axis_angle":
+                        rot = TorchUtils.rot_6d_to_axis_angle(rot_6d=rot_6d).squeeze().numpy()
+                    elif conversion_format == "rot_euler":
+                        rot = TorchUtils.rot_6d_to_euler_angles(rot_6d=rot_6d, convention="XYZ").squeeze().numpy()
+                    else:
+                        raise ValueError
+                    ac_dict[key] = rot
+            ac = AcUtils.action_dict_to_vector(ac_dict, action_keys=action_keys)
+        return ac
