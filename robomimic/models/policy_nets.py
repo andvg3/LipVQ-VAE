@@ -1701,9 +1701,6 @@ class ICLTransformerGMMActorNetwork(ICLTransformerActorNetwork):
         Returns:
             action (torch.Tensor): batch of actions from policy distribution
         """
-        for key in context_obs:
-            print(key, context_obs[key].data.shape)
-        exit()
         out = self.forward_train(obs_dict=obs_dict, context_obs=context_obs, actions=actions, goal_dict=goal_dict)
         return out.sample()
 
