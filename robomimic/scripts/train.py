@@ -212,6 +212,10 @@ def train(config, device, eval_only=False):
         drop_last=True
     )
 
+    # Inspect dataset
+    for ds in trainset:
+        print(ds)
+
     if config.experiment.validate:
         # cap num workers for validation dataset at 1
         num_workers = min(config.train.num_data_workers, 1)
