@@ -25,6 +25,7 @@ import psutil
 import sys
 import socket
 import traceback
+import copy
 
 from collections import OrderedDict
 
@@ -212,15 +213,14 @@ def train(config, device, eval_only=False):
         drop_last=True
     )
 
-    # Inspect dataset
-    for batch in trainset[0]:
-        print(batch)
-        input_batch = dict()
-        input_batch["obs"] = {k: batch["obs"][k][:, 0, :] for k in batch["obs"]}
-        input_batch["goal_obs"] = batch.get("goal_obs", None) # goals may not be present
-        input_batch["actions"] = batch["actions"][:, 0, :]
-        print(input_batch["actions"].data.shape)
-    exit()
+    context_data_loader = DataLoader(
+        dataset=trainset,
+        sampler=train_sampler,
+        batch_size=1,
+        shuffle=(train_sampler is None),
+        num_workers=config.train.num_data_workers,
+        drop_last=True
+    )
 
     if config.experiment.validate:
         # cap num workers for validation dataset at 1
@@ -327,6 +327,8 @@ def train(config, device, eval_only=False):
             ckpt_reason = None
 
         # Evaluate the model by by running rollouts
+        # Load context dataset
+        context_data_loader_iter = iter(context_data_loader)
 
         # do rollouts at fixed rate or if it's time to save a new ckpt
         video_paths = None
@@ -340,12 +342,26 @@ def train(config, device, eval_only=False):
                 lang_encoder=lang_encoder,
             )
 
+            try:
+                # Load context batch
+                batch = next(context_data_loader_iter)
+            except StopIteration:
+                # Reset the iterator if exhausted
+                context_data_loader_iter = iter(context_data_loader)
+                batch = next(context_data_loader_iter)
+
+            context_batch = dict()
+            context_batch["obs"] = {k: batch["obs"][k][:, 0, :] for k in batch["obs"]}
+            context_batch["goal_obs"] = batch.get("goal_obs", None) # goals may not be present
+            context_batch["actions"] = batch["actions"][:, 0, :]
+
             num_episodes = config.experiment.rollout.n
-            all_rollout_logs, video_paths = TrainUtils.rollout_with_stats(
+            all_rollout_logs, video_paths = TrainUtils.icl_rollout_with_stats(
                 policy=rollout_model,
                 envs=env_iterator(),
                 horizon=eval_env_horizon_list,
                 use_goals=config.use_goals,
+                context_batch=context_batch,
                 num_episodes=num_episodes,
                 render=False,
                 video_dir=video_dir if config.experiment.render_video else None,

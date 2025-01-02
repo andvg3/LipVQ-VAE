@@ -456,6 +456,208 @@ def run_rollout(
     return results
 
 
+def icl_run_rollout(
+        policy, 
+        env, 
+        horizon,
+        context_batch,
+        use_goals=False,
+        render=False,
+        video_writer=None,
+        video_skip=5,
+        terminate_on_success=False,
+    ):
+    """
+    Runs a rollout in an environment with the current network parameters.
+
+    Args:
+        policy (RolloutPolicy instance): policy to use for rollouts.
+
+        env (EnvBase instance): environment to use for rollouts.
+
+        horizon (int): maximum number of steps to roll the agent out for
+
+        use_goals (bool): if True, agent is goal-conditioned, so provide goal observations from env
+
+        render (bool): if True, render the rollout to the screen
+
+        video_writer (imageio Writer instance): if not None, use video writer object to append frames at 
+            rate given by @video_skip
+
+        video_skip (int): how often to write video frame
+
+        terminate_on_success (bool): if True, terminate episode early as soon as a success is encountered
+
+    Returns:
+        results (dict): dictionary containing return, success rate, etc.
+    """
+    assert isinstance(policy, RolloutPolicy)
+    assert isinstance(env, EnvBase) or isinstance(env, EnvWrapper) or isinstance(env, SubprocVectorEnv)
+
+    batched = isinstance(env, SubprocVectorEnv)
+
+    ob_dict = env.reset()
+    policy.start_episode(lang=env._ep_lang_str)
+
+    goal_dict = None
+    if use_goals:
+        # retrieve goal from the environment
+        goal_dict = env.get_goal()
+
+    results = {}
+    video_count = 0  # video frame counter
+
+    rews = []
+    success = None #{ k: False for k in env.is_success() } # success metrics
+
+    if batched:
+        end_step = [None for _ in range(len(env))]
+    else:
+        end_step = None
+
+    if batched:
+        video_frames = [[] for _ in range(len(env))]
+    else:
+        video_frames = []
+    
+    for step_i in range(horizon): #LogUtils.tqdm(range(horizon)):
+        # get action from policy
+        if batched:
+            policy_ob = batchify_obs(ob_dict)
+            ac = policy(ob=policy_ob, goal=goal_dict, batched=True) #, return_ob=True)
+        else:
+            for key in context_batch:
+                print(context_batch[key])
+            policy_ob = ob_dict
+            ac = policy(ob=policy_ob, goal=goal_dict, context_obs=context_batch) #, return_ob=True)
+
+        # play action
+        ob_dict, r, done, info = env.step(ac)
+
+        # render to screen
+        if render:
+            env.render(mode="human")
+
+        # compute reward
+        rews.append(r)
+
+        # cur_success_metrics = env.is_success()
+        if batched:
+            cur_success_metrics = TensorUtils.list_of_flat_dict_to_dict_of_list([info[i]["is_success"] for i in range(len(info))])
+            cur_success_metrics = {k: np.array(v) for (k, v) in cur_success_metrics.items()}
+        else:
+            cur_success_metrics = info["is_success"]
+
+        if success is None:
+            success = deepcopy(cur_success_metrics)
+        else:
+            for k in success:
+                success[k] = success[k] | cur_success_metrics[k]
+
+        # visualization
+        if video_writer is not None:
+            if video_count % video_skip == 0:
+                if batched:
+                    # frames = env.render(mode="rgb_array", height=video_height, width=video_width)
+                    
+                    frames = []
+                    policy_ob = deepcopy(policy_ob)
+                    for env_i in range(len(env)):
+                        cam_imgs = []
+                        for im_name in ["robot0_agentview_left_image", "robot0_agentview_right_image", "robot0_eye_in_hand_image"]:
+                            im = TensorUtils.to_numpy(
+                                policy_ob[im_name][env_i, -1]
+                            )
+                            im = np.transpose(im, (1, 2, 0))
+                            if policy_ob.get("ret", None) is not None:
+                                im_ret = TensorUtils.to_numpy(
+                                    policy_ob["ret"]["obs"][im_name][env_i,:,-1]
+                                )
+                                im_ret = np.transpose(im_ret, (0, 2, 3, 1))
+                                im = np.concatenate((im, *im_ret), axis=0)
+                            cam_imgs.append(im)
+                        frame = np.concatenate(cam_imgs, axis=1)
+                        frame = (frame * 255.0).astype(np.uint8)
+                        frames.append(frame)
+                    
+                    for env_i in range(len(env)):
+                        frame = frames[env_i]
+                        video_frames[env_i].append(frame)
+                else:
+                    frame = env.render(mode="rgb_array", height=512, width=512)
+                    
+                    # cam_imgs = []
+                    # for im_name in ["robot0_eye_in_hand_image", "robot0_agentview_right_image", "robot0_agentview_left_image"]:
+                    #     im_input = TensorUtils.to_numpy(
+                    #         policy_ob_dict[im_name][0,-1]
+                    #     )
+                    #     im_ret = TensorUtils.to_numpy(
+                    #         policy_ob_dict["ret"]["obs"][im_name][0,:,-1]
+                    #     )
+                    #     im_input = np.transpose(im_input, (1, 2, 0))
+                    #     im_input = add_border_to_frame(im_input, border_size=3, color="black")
+                    #     im_ret = np.transpose(im_ret, (0, 2, 3, 1))
+                    #     im = np.concatenate((im_input, *im_ret), axis=1)
+                    #     cam_imgs.append(im)
+
+                    # frame = np.concatenate(cam_imgs, axis=0)
+                    video_frames.append(frame)
+
+            video_count += 1
+
+        # break if done
+        if batched:
+            for env_i in range(len(env)):
+                if end_step[env_i] is not None:
+                    continue
+                
+                if done[env_i] or (terminate_on_success and success["task"][env_i]):
+                    end_step[env_i] = step_i
+        else:
+            if done or (terminate_on_success and success["task"]):
+                end_step = step_i
+                break
+
+
+    if video_writer is not None:
+        if batched:
+            for env_i in range(len(video_frames)):
+                for frame in video_frames[env_i]:
+                    video_writer.append_data(frame)
+        else:
+            for frame in video_frames:
+                video_writer.append_data(frame)
+
+    if batched:
+        total_reward = np.zeros(len(env))
+        rews = np.array(rews)
+        for env_i in range(len(env)):
+            end_step_env_i = end_step[env_i] or step_i
+            total_reward[env_i] = np.sum(rews[:end_step_env_i+1, env_i])
+            end_step[env_i] = end_step_env_i
+        
+        results["Return"] = total_reward
+        results["Horizon"] = np.array(end_step) + 1
+        results["Success_Rate"] = success["task"].astype(float)
+    else:
+        end_step = end_step or step_i
+        total_reward = np.sum(rews[:end_step + 1])
+        
+        results["Return"] = total_reward
+        results["Horizon"] = end_step + 1
+        results["Success_Rate"] = float(success["task"])
+
+    # log additional success metrics
+    for k in success:
+        if k != "task":
+            if batched:
+                results["{}_Success_Rate".format(k)] = success[k].astype(float)
+            else:
+                results["{}_Success_Rate".format(k)] = float(success[k])
+
+    return results
+
+
 def rollout_with_stats(
         policy,
         envs,
@@ -562,6 +764,181 @@ def rollout_with_stats(
                     policy=policy,
                     env=env,
                     horizon=horizon,
+                    render=render,
+                    use_goals=use_goals,
+                    video_writer=env_video_writer,
+                    video_skip=video_skip,
+                    terminate_on_success=terminate_on_success,
+                )
+            except Exception as e:
+                print("Rollout exception at episode number {}!".format(ep_i))
+                print(traceback.format_exc())
+                break
+            
+            if batched:
+                rollout_info["time"] = [(time.time() - rollout_timestamp) / len(env)] * len(env)
+
+                for env_i in range(len(env)):
+                    rollout_logs.append({k: rollout_info[k][env_i] for k in rollout_info})
+                num_success += np.sum(rollout_info["Success_Rate"])
+            else:
+                rollout_info["time"] = time.time() - rollout_timestamp
+
+                rollout_logs.append(rollout_info)
+                num_success += rollout_info["Success_Rate"]
+            
+            if verbose:
+                if batched:
+                    raise NotImplementedError
+                print("Episode {}, horizon={}, num_success={}".format(ep_i + 1, horizon, num_success))
+                print(json.dumps(rollout_info, sort_keys=True, indent=4))
+
+        if video_dir is not None:
+            # close this env's video writer (next env has it's own)
+            env_video_writer.close()
+
+        # average metric across all episodes
+        if len(rollout_logs) > 0:
+            rollout_logs = dict((k, [rollout_logs[i][k] for i in range(len(rollout_logs))]) for k in rollout_logs[0])
+            rollout_logs_mean = dict((k, np.mean(v)) for k, v in rollout_logs.items())
+            rollout_logs_mean["Time_Episode"] = np.sum(rollout_logs["time"]) / 60. # total time taken for rollouts in minutes
+            all_rollout_logs[env_name] = rollout_logs_mean
+        else:
+            all_rollout_logs[env_name] = {"Time_Episode": -1, "Return": -1, "Success_Rate": -1, "time": -1}
+
+        if del_envs_after_rollouts:
+            # delete the environment after use
+            env.env.env.close()
+            del env
+
+        if data_logger is not None:
+            # summarize results from rollouts to tensorboard and terminal
+            rollout_logs = all_rollout_logs[env_name]
+            for k, v in rollout_logs.items():
+                if k.startswith("Time_"):
+                    data_logger.record("Timing_Stats/Rollout_{}_{}".format(env_name, k[5:]), v, epoch)
+                else:
+                    data_logger.record("Rollout/{}/{}".format(k, env_name), v, epoch, log_stats=True)
+
+            print("\nEpoch {} Rollouts took {}s (avg) with results:".format(epoch, rollout_logs["time"]))
+            print('Env: {}'.format(env_name))
+            print(json.dumps(rollout_logs, sort_keys=True, indent=4))
+
+    if video_path is not None:
+        # close video writer that was used for all envs
+        video_writer.close()
+
+    return all_rollout_logs, None
+
+
+def icl_rollout_with_stats(
+        policy,
+        envs,
+        horizon,
+        use_goals=False,
+        context_batch=None,
+        num_episodes=None,
+        render=False,
+        video_dir=None,
+        video_path=None,
+        epoch=None,
+        video_skip=5,
+        terminate_on_success=False,
+        verbose=False,
+        del_envs_after_rollouts=False,
+        data_logger=None,
+    ):
+    """
+    A helper function used in the train loop to conduct evaluation rollouts per environment
+    and summarize the results.
+
+    Can specify @video_dir (to dump a video per environment) or @video_path (to dump a single video
+    for all environments).
+
+    Args:
+        policy (RolloutPolicy instance): policy to use for rollouts.
+
+        envs (dict): dictionary that maps env_name (str) to EnvBase instance. The policy will
+            be rolled out in each env.
+
+        horizon (int): maximum number of steps to roll the agent out for
+
+        use_goals (bool): if True, agent is goal-conditioned, so provide goal observations from env
+
+        num_episodes (int): number of rollout episodes per environment
+
+        render (bool): if True, render the rollout to the screen
+
+        video_dir (str): if not None, dump rollout videos to this directory (one per environment)
+
+        video_path (str): if not None, dump a single rollout video for all environments
+
+        epoch (int): epoch number (used for video naming)
+
+        video_skip (int): how often to write video frame
+
+        terminate_on_success (bool): if True, terminate episode early as soon as a success is encountered
+
+        verbose (bool): if True, print results of each rollout
+    
+    Returns:
+        all_rollout_logs (dict): dictionary of rollout statistics (e.g. return, success rate, ...) 
+            averaged across all rollouts 
+
+        video_paths (dict): path to rollout videos for each environment
+    """
+    assert isinstance(policy, RolloutPolicy)
+
+    all_rollout_logs = OrderedDict()
+
+    # handle paths and create writers for video writing
+    assert (video_path is None) or (video_dir is None), "rollout_with_stats: can't specify both video path and dir"
+    write_video = (video_path is not None) or (video_dir is not None)
+
+    if isinstance(horizon, list):
+        horizon_list = horizon
+    else:
+        horizon_list = [horizon]
+
+    for env, horizon in zip(envs, horizon_list):
+        batched = isinstance(env, SubprocVectorEnv)
+
+        if batched:
+            env_name = env.get_env_attr(key="name", id=0)[0]
+        else:
+            env_name = env.name
+
+        if video_dir is not None:
+            # video is written per env
+            video_str = "_epoch_{}.mp4".format(epoch) if epoch is not None else ".mp4" 
+            video_path = os.path.join(video_dir, "{}{}".format(env_name, video_str))
+            video_writer = imageio.get_writer(video_path, fps=20)
+            
+        env_video_writer = None
+        if write_video:
+            print("video writes to " + video_path)
+            env_video_writer = imageio.get_writer(video_path, fps=20)
+
+        print("rollout: env={}, horizon={}, use_goals={}, num_episodes={}".format(
+            env_name, horizon, use_goals, num_episodes,
+        ))
+        rollout_logs = []
+        if batched:
+            iterator = range(0, num_episodes, len(env))
+        else:
+            iterator = range(num_episodes)
+        if not verbose:
+            iterator = LogUtils.custom_tqdm(iterator, total=num_episodes)
+
+        num_success = 0
+        for ep_i in iterator:
+            rollout_timestamp = time.time()
+            try:
+                rollout_info = icl_run_rollout(
+                    policy=policy,
+                    env=env,
+                    horizon=horizon,
+                    context_batch=context_batch,
                     render=render,
                     use_goals=use_goals,
                     video_writer=env_video_writer,
