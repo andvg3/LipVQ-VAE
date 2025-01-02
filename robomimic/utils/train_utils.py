@@ -25,7 +25,7 @@ import robomimic.utils.file_utils as FileUtils
 from robomimic.utils.dataset import SequenceDataset, R2D2Dataset, MetaDataset
 from robomimic.envs.env_base import EnvBase
 from robomimic.envs.wrappers import EnvWrapper
-from robomimic.algo import RolloutPolicy
+from robomimic.algo import RolloutPolicy, IClRolloutPolicy
 from tianshou.env import SubprocVectorEnv
 
 
@@ -885,7 +885,7 @@ def icl_rollout_with_stats(
 
         video_paths (dict): path to rollout videos for each environment
     """
-    assert isinstance(policy, RolloutPolicy)
+    assert isinstance(policy, ICLRolloutPolicy)
 
     all_rollout_logs = OrderedDict()
 
