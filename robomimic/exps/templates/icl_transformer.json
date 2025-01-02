@@ -108,7 +108,6 @@
         "language_conditioned": false
     },
     "observation": {
-        "action_input_shape": 12,
         "modalities": {
             "obs": {
                 "low_dim": [
