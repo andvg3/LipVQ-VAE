@@ -103,12 +103,12 @@
             "causal": false,
             "num_layers": 6,
             "embed_dim": 512,
-            "num_heads": 8,
-            "action_input_shape": 12
+            "num_heads": 8
         },
         "language_conditioned": false
     },
     "observation": {
+        "action_input_shape": 12,
         "modalities": {
             "obs": {
                 "low_dim": [
