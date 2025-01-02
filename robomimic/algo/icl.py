@@ -782,17 +782,11 @@ class ICLTransformer(ICL):
             action (torch.Tensor): action tensor
         """
         assert not self.nets.training
-        # Inspect obs
-        print("********************************")
-        for key in obs_dict:
-            print(key, obs_dict[key].data.shape)
-        print("-------------------------------")
-        for key in context_batch:
-            for subkey in context_batch[key]:
-                print(key, subkey, context_batch[key][subkey].data.shape)
-        exit()
+        
+        context_obs = context_batch["obs"]
+        context_action = context_batch["action"]
 
-        output = self.nets["policy"](obs_dict, actions=None, goal_dict=goal_dict)
+        output = self.nets["policy"](obs_dict, context_obs, actions=context_action, goal_dict=goal_dict)
 
         if self.supervise_all_steps:
             if self.algo_config.transformer.pred_future_acs:
