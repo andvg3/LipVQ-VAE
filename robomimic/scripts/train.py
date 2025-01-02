@@ -213,8 +213,11 @@ def train(config, device, eval_only=False):
     )
 
     # Inspect dataset
-    for ds in trainset:
-        print(ds)
+    for batch in trainset:
+        input_batch = dict()
+        input_batch["obs"] = {k: batch["obs"][k][:, 0, :] for k in batch["obs"]}
+        input_batch["goal_obs"] = batch.get("goal_obs", None) # goals may not be present
+        input_batch["actions"] = batch["actions"][:, 0, :]
     exit()
 
     if config.experiment.validate:
