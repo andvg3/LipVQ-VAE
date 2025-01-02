@@ -327,6 +327,10 @@ def run_rollout(
             ac = policy(ob=policy_ob, goal=goal_dict, batched=True) #, return_ob=True)
         else:
             policy_ob = ob_dict
+            for key in policy_ob:
+                print(key, policy_ob[key].data.shape)
+
+            exit()
             ac = policy(ob=policy_ob, goal=goal_dict) #, return_ob=True)
 
         # play action
