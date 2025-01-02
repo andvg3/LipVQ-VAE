@@ -781,9 +781,9 @@ class ICLRolloutPolicy(object):
         
         # Inspect obs
         for key in ob:
-            print(key, ob[key])
+            print(key, ob[key].data.shape)
         for key in context_batch:
-            print(key, context_batch[key])
+            print(key, context_batch[key].data.shape)
         exit()
         ac = self.policy.get_action(obs_dict=ob, goal_dict=goal)
         if not batched:
