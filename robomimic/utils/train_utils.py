@@ -491,7 +491,7 @@ def icl_run_rollout(
     Returns:
         results (dict): dictionary containing return, success rate, etc.
     """
-    assert isinstance(policy, RolloutPolicy)
+    assert isinstance(policy, ICLRolloutPolicy)
     assert isinstance(env, EnvBase) or isinstance(env, EnvWrapper) or isinstance(env, SubprocVectorEnv)
 
     batched = isinstance(env, SubprocVectorEnv)
