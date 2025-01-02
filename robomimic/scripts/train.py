@@ -358,10 +358,12 @@ def train(config, device, eval_only=False):
                 context_data_loader_iter = iter(context_data_loader)
                 batch = next(context_data_loader_iter)
 
-            context_batch = dict()
-            context_batch["obs"] = {k: batch["obs"][k][:, 0, :] for k in batch["obs"]}
-            context_batch["goal_obs"] = batch.get("goal_obs", None) # goals may not be present
-            context_batch["actions"] = batch["actions"][:, 0, :]
+            # context_batch = dict()
+            context_batch = model.process_batch_for_training(batch)
+            context_batch = model.postprocess_batch_for_training(context_batch, obs_normalization_stats=obs_normalization_stats)
+            # context_batch["obs"] = {k: batch["obs"][k][:, 0, :] for k in batch["obs"]}
+            # context_batch["goal_obs"] = batch.get("goal_obs", None) # goals may not be present
+            # context_batch["actions"] = batch["actions"][:, 0, :]
 
             num_episodes = config.experiment.rollout.n
             all_rollout_logs, video_paths = TrainUtils.icl_rollout_with_stats(
