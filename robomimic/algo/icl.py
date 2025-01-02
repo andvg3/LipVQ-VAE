@@ -784,7 +784,7 @@ class ICLTransformer(ICL):
         assert not self.nets.training
         
         context_obs = context_batch["obs"]
-        context_action = context_batch["action"]
+        context_action = context_batch["actions"]
 
         output = self.nets["policy"](obs_dict, context_obs, actions=context_action, goal_dict=goal_dict)
 
