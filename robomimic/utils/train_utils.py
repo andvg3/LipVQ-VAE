@@ -25,7 +25,7 @@ import robomimic.utils.file_utils as FileUtils
 from robomimic.utils.dataset import SequenceDataset, R2D2Dataset, MetaDataset
 from robomimic.envs.env_base import EnvBase
 from robomimic.envs.wrappers import EnvWrapper
-from robomimic.algo import RolloutPolicy, IClRolloutPolicy
+from robomimic.algo import RolloutPolicy, ICLRolloutPolicy
 from tianshou.env import SubprocVectorEnv
 
 
