@@ -3,7 +3,7 @@ import json
 
 
 def make_generator_helper(args):
-    generator = get_generator(
+    generator = get_icl_generator(
         algo_name=ckpt_config["algo_name"],
         config_file=ckpt_config_path,
         args=args,
@@ -101,10 +101,11 @@ if __name__ == "__main__":
     args.dataset = None
     # set up datasets to evaluate on
     ckpt_datasets = ckpt_config["train"]["data"]
+    reset = True
     for ds_cfg in ckpt_datasets:
         ds_cfg["eval"] = True
         ds_cfg["do_eval"] = True
 
         args.dataset = ds_cfg
-
-        make_generator(args, make_generator_helper, skip_helpers=("env", "mod"), extra_flags="--eval_only")
+        make_icl_eval_generator(args, make_generator_helper, skip_helpers=("env", "mod"), extra_flags="--eval_only", reset=reset)
+        reset = False

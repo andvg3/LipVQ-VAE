@@ -628,3 +628,67 @@ def make_generator(args, make_generator_helper, skip_helpers=None, extra_flags=N
 
     # generate jsons and script
     generator.generate(override_base_name=True, extra_flags=extra_flags)
+
+
+def make_icl_eval_generator(args, make_generator_helper, skip_helpers=None, extra_flags=None, reset=False):
+    if args.tmplog or args.debug and args.name is None:
+        args.name = "debug"
+    else:
+        time_str = datetime.datetime.fromtimestamp(time.time()).strftime('%m-%d-')
+        args.name = time_str + str(args.name)
+
+    if args.debug or args.tmplog:
+        args.no_wandb = True
+
+    if args.wandb_proj_name is not None:
+        # prepend data to wandb name
+        # time_str = datetime.datetime.fromtimestamp(time.time()).strftime('%m-%d-')
+        # args.wandb_proj_name = time_str + args.wandb_proj_name
+        pass
+
+    if (args.debug or args.tmplog) and (args.wandb_proj_name is None):
+        args.wandb_proj_name = 'debug'
+
+    if not args.debug:
+        assert args.name is not None
+
+    # make config generator
+    generator = make_generator_helper(args)
+
+    if skip_helpers is None:
+        skip_helpers = []
+
+    if "env" not in skip_helpers:
+        set_env_settings(generator, args)
+    if "mod" not in skip_helpers:
+        set_mod_settings(generator, args)
+    set_output_dir(generator, args)
+    set_num_seeds(generator, args)
+    set_wandb_mode(generator, args)
+
+    # set the debug settings last, to override previous setting changes
+    set_debug_mode(generator, args)
+
+    set_rollout_mode(generator, args)
+
+    """ misc settings """
+    generator.add_param(
+        key="experiment.validate",
+        name="",
+        group=-1,
+        values=[
+            False,
+        ],
+    )
+    if "experiment.save.on_best_rollout_success_rate" not in generator.parameters:
+        generator.add_param(
+            key="experiment.save.on_best_rollout_success_rate",
+            name="",
+            group=-1,
+            values=[
+                False,
+            ],
+        )
+
+    # generate jsons and script
+    generator.generate_icl_scripts(override_base_name=True, extra_flags=extra_flags, reset=False)

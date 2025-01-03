@@ -100,6 +100,17 @@ class ConfigGenerator(object):
         assert len(self.parameters) > 0, "must add parameters using add_param first!"
         generated_json_paths = self._generate_jsons(override_base_name=override_base_name)
         self._script_from_jsons(generated_json_paths, extra_flags=extra_flags)
+    
+    def generate_icl_scripts(self, override_base_name=False, extra_flags=None, reset=False):
+        """
+        Generates json configs for the hyperparameter sweep using attributes
+        @self.parameters, @self.base_config_file, and @self.script_file,
+        all of which should have first been set externally by calling
+        @add_param, @set_base_config_file, and @set_script_file.
+        """
+        assert len(self.parameters) > 0, "must add parameters using add_param first!"
+        generated_json_paths = self._generate_jsons(override_base_name=override_base_name)
+        self._icl_script_from_jsons(generated_json_paths, extra_flags=extra_flags, reset=reset)
 
     def _name_for_experiment(self, base_name, parameter_values, parameter_value_names):
         """
@@ -307,6 +318,30 @@ class ConfigGenerator(object):
         the input jsons.
         """
         with open(self.script_file, 'w') as f:
+            f.write("#!/bin/bash\n\n")
+            for path in json_paths:
+                # write python command to file
+                import robomimic
+                cmd = "python {}/scripts/train.py --config {}{}\n".format(
+                    robomimic.__path__[0], path,
+                    " " + extra_flags if isinstance(extra_flags, str) else ""
+                )
+                
+                print()
+                print(cmd)
+                f.write(cmd)
+    
+    def _icl_script_from_jsons(self, json_paths, extra_flags=None, reset=False):
+        """
+        Generates a bash script to run the experiments that correspond to
+        the input jsons.
+        """
+        if reset:
+            mode = 'w'
+        else:
+            mode = 'a+'
+
+        with open(self.script_file, mode) as f:
             f.write("#!/bin/bash\n\n")
             for path in json_paths:
                 # write python command to file
