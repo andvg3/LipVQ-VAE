@@ -99,6 +99,7 @@ def train(config, device, eval_only=False):
             ds_format=ds_format,
             verbose=True
         )
+        action_size = shape_meta["ac_dim"]
         shape_meta_list.append(shape_meta)
 
     if config.experiment.env is not None:
