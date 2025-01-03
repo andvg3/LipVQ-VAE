@@ -74,6 +74,8 @@ def train(config, device, eval_only=False):
     env_meta_list = []
     shape_meta_list = []
     for dataset_cfg in config.train.data:
+        print(dataset_cfg)
+        exit()
         dataset_path = os.path.expanduser(dataset_cfg["path"])
         ds_format = config.train.data_format
         if not os.path.exists(dataset_path):
