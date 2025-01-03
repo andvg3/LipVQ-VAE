@@ -106,6 +106,6 @@ if __name__ == "__main__":
         ds_cfg["eval"] = True
         ds_cfg["do_eval"] = True
 
-        args.dataset = ds_cfg
+        args.dataset = [ds_cfg]
         make_icl_eval_generator(args, make_generator_helper, skip_helpers=("env", "mod"), extra_flags="--eval_only", reset=reset)
         reset = False
