@@ -1292,7 +1292,7 @@ class ICLTransformerActorNetwork(ICL_MIMO_Transformer):
         return "action_dim={}".format(self.ac_dim)
 
 
-class TransformerGMMActorNetwork(ICLTransformerActorNetwork):
+class TransformerGMMActorNetwork(TransformerActorNetwork):
     """
     A Transformer GMM policy network that predicts sequences of action distributions from observation 
     sequences (assumed to be frame stacked from previous observations).
