@@ -3,7 +3,7 @@ import json
 
 
 def make_generator_helper(args):
-    generator = get_icl_generator(
+    generator = get_generator(
         algo_name=ckpt_config["algo_name"],
         config_file=ckpt_config_path,
         args=args,
