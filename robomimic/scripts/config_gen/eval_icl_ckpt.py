@@ -17,80 +17,82 @@ def make_generator_helper(args):
         ckpt_config = json.load(f)
     algo_name_short = ckpt_path.split("/")[-6]
 
-    generator = get_generator(
-        algo_name=ckpt_config["algo_name"],
-        config_file=ckpt_config_path,
-        args=args,
-        algo_name_short=algo_name_short,
-    )
-
     # set up datasets to evaluate on
     ckpt_datasets = ckpt_config["train"]["data"]
-    print(ckpt_datasets)
-    
     for ds_cfg in ckpt_datasets:
         ds_cfg["eval"] = True
-    generator.add_param(
-        key="train.data",
-        name="ds",
-        group=12345,
-        values_and_names=[
-            (ckpt_datasets, "ckpt_datasets"),
-            # (get_robocasa_ds("single_stage", src="human", eval=["PnPCounterToSink", "PnPCounterToCab"], filter_key="50_demos"), "human-50"), # training on human datasets
-            # ("set-your-datasets-here"), "name"),
-        ],
-    )
-    
-    # set up configs for running evals (do not need to change these lines)
-    generator.add_param(
-        key="experiment.ckpt_path",
-        name="ckpt",
-        group=1,
-        values=[ckpt_path],
-        hidename=True,
-    )
-    generator.add_param(
-        key="experiment.rollout.enabled",
-        name="",
-        group=-1,
-        values=[True],
-    )
+        ds_cfg["do_eval"] = True
 
-    if ckpt_is_dir:
+        ckpt_datasets_atom = [ds_cfg]
+
+        generator = get_generator(
+            algo_name=ckpt_config["algo_name"],
+            config_file=ckpt_config_path,
+            args=args,
+            algo_name_short=algo_name_short,
+        )
+
         generator.add_param(
-            key="experiment.rollout.rate",
+            key="train.data",
+            name="ds",
+            group=12345,
+            values_and_names=[
+                (ckpt_datasets_atom, "ckpt_datasets"),
+                # (get_robocasa_ds("single_stage", src="human", eval=["PnPCounterToSink", "PnPCounterToCab"], filter_key="50_demos"), "human-50"), # training on human datasets
+                # ("set-your-datasets-here"), "name"),
+            ],
+        )
+        
+        # set up configs for running evals (do not need to change these lines)
+        generator.add_param(
+            key="experiment.ckpt_path",
+            name="ckpt",
+            group=1,
+            values=[ckpt_path],
+            hidename=True,
+        )
+        generator.add_param(
+            key="experiment.rollout.enabled",
             name="",
             group=-1,
-            values=[200],
+            values=[True],
         )
-    else:
+
+        if ckpt_is_dir:
+            generator.add_param(
+                key="experiment.rollout.rate",
+                name="",
+                group=-1,
+                values=[200],
+            )
+        else:
+            generator.add_param(
+                key="experiment.rollout.warmstart",
+                name="",
+                group=-1,
+                values=[-1],
+            )
+            generator.add_param(
+                key="train.num_epochs",
+                name="",
+                group=-1,
+                values=[0],
+            )
+        
         generator.add_param(
-            key="experiment.rollout.warmstart",
-            name="",
-            group=-1,
-            values=[-1],
-        )
-        generator.add_param(
-            key="train.num_epochs",
+            key="train.num_data_workers",
             name="",
             group=-1,
             values=[0],
         )
-    
-    generator.add_param(
-        key="train.num_data_workers",
-        name="",
-        group=-1,
-        values=[0],
-    )
-    generator.add_param(
-        key="train.output_dir",
-        name="",
-        group=-1,
-        values=[get_output_dir(args, algo_dir=algo_name_short)]
-    )
+        generator.add_param(
+            key="train.output_dir",
+            name="",
+            group=-1,
+            values=[get_output_dir(args, algo_dir=algo_name_short)]
+        )
 
-    return generator
+        yield generator
 
 if __name__ == "__main__":
     parser = get_argparser()
