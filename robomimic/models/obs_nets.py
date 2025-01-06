@@ -636,13 +636,21 @@ class ICLObservationGroupEncoder(Module):
 
         # Create encoder for action
         action_output_shape = self.output_shape()[0]
+
+        transformer_layer = nn.TransformerEncoderLayer(
+            d_model=action_output_shape,
+            nhead=8,
+            dim_feedforward=256,
+            activation="gelu"
+        )
+
         self.action_network = nn.Sequential(
             nn.Linear(action_input_shape, 64),
             nn.GELU(),
             nn.Linear(64, 128),
             nn.GELU(),
             nn.Linear(128, action_output_shape),
-            nn.TransformerEncoder(d_model=action_output_shape),
+            nn.TransformerEncoder(transformer_layer, num_layers=4),
             nn.Linear(action_output_shape, action_output_shape),
         )
 
