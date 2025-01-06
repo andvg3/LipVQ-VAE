@@ -17,8 +17,10 @@ def make_generator_helper(args):
         name="ds",
         group=123456,
         values_and_names=[
-            (get_robocasa_ds("single_stage", src="human", eval=["PnPCounterToSink", "PnPCounterToCab"], filter_key="50_demos"), "human-50"), # training on human datasets
-            (get_robocasa_ds("single_stage", src="mg", eval=["PnPCounterToSink", "PnPCounterToCab"], filter_key="3000_demos"), "mg-3000"), # training on MimicGen datasets
+            # (get_robocasa_ds("single_stage", src="human", eval=["PnPCounterToSink", "PnPCounterToCab"], filter_key="50_demos"), "human-50"), # training on human datasets
+            # (get_robocasa_ds("single_stage", src="mg", eval=["PnPCounterToSink", "PnPCounterToCab"], filter_key="3000_demos"), "mg-3000"), # training on MimicGen datasets
+            (get_robocasa_ds("single_stage", src="human", eval=[], filter_key="50_demos"), "human-50"), # training on human datasets
+            (get_robocasa_ds("single_stage", src="mg", eval=[], filter_key="3000_demos"), "mg-3000"), # training on MimicGen datasets
 
             # composite tasks
             (get_robocasa_ds("ArrangeVegetables", filter_key="50_demos"), "ArrangeVegetables"),
