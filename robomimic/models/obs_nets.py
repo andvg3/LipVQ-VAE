@@ -643,7 +643,7 @@ class ICLObservationGroupEncoder(Module):
             nn.GELU(),
             nn.Linear(128, action_output_shape),
             nn.Transformer(d_model=action_output_shape),
-            nn.Liear(action_output_shape, action_output_shape),
+            nn.Linear(action_output_shape, action_output_shape),
         )
 
     def forward(self, **inputs):
