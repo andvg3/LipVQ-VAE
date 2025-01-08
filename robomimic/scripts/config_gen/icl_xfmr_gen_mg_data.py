@@ -13,7 +13,7 @@ def make_generator_helper(args):
 
     values_and_names = []
     for task in args.task_list:
-        values_and_names.append(get_robocasa_ds(task, src="mg", eval=[], filter_key="3000_demos"), "mg-3000")
+        values_and_names.append((get_robocasa_ds(task, src="mg", eval=[], filter_key="3000_demos"), "mg-3000"))
 
     ### Define dataset variants to train on ###
     generator.add_param(
