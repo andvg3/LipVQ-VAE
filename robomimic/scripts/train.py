@@ -171,13 +171,13 @@ def train(config, device, eval_only=False):
         json.dump(config, outfile, indent=4)
 
     ckpt_path = config.experiment.ckpt_path
+    print(ckpt_path)
+    exit()
     if ckpt_path is not None and os.path.isfile(os.path.expanduser(ckpt_path)):
         print("LOADING MODEL WEIGHTS FROM " + ckpt_path)
         from robomimic.utils.file_utils import maybe_dict_from_checkpoint
         ckpt_dict = maybe_dict_from_checkpoint(ckpt_path=ckpt_path)
         model.deserialize(ckpt_dict["model"])
-
-        exit()
 
     print("\n============= Model Summary =============")
     print(model)  # print model summary
