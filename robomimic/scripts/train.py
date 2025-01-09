@@ -177,6 +177,8 @@ def train(config, device, eval_only=False):
         ckpt_dict = maybe_dict_from_checkpoint(ckpt_path=ckpt_path)
         model.deserialize(ckpt_dict["model"])
 
+        exit()
+
     print("\n============= Model Summary =============")
     print(model)  # print model summary
     print("")
