@@ -367,21 +367,38 @@ def train(config, device, eval_only=False):
             # context_batch["actions"] = batch["actions"][:, 0, :]
 
             num_episodes = config.experiment.rollout.n
-            all_rollout_logs, video_paths = TrainUtils.icl_rollout_with_stats(
-                policy=rollout_model,
-                envs=env_iterator(),
-                horizon=eval_env_horizon_list,
-                use_goals=config.use_goals,
-                context_batch=context_batch,
-                num_episodes=num_episodes,
-                render=False,
-                video_dir=video_dir if config.experiment.render_video else None,
-                epoch=epoch,
-                video_skip=config.experiment.get("video_skip", 5),
-                terminate_on_success=config.experiment.rollout.terminate_on_success,
-                del_envs_after_rollouts=True,
-                data_logger=data_logger,
-            )
+            try:
+                all_rollout_logs, video_paths = TrainUtils.icl_rollout_with_stats(
+                    policy=rollout_model,
+                    envs=env_iterator(),
+                    horizon=eval_env_horizon_list,
+                    use_goals=config.use_goals,
+                    context_batch=context_batch,
+                    num_episodes=num_episodes,
+                    render=False,
+                    video_dir=video_dir if config.experiment.render_video else None,
+                    epoch=epoch,
+                    video_skip=config.experiment.get("video_skip", 5),
+                    terminate_on_success=config.experiment.rollout.terminate_on_success,
+                    del_envs_after_rollouts=True,
+                    data_logger=data_logger,
+                )
+            except:
+                all_rollout_logs, video_paths = TrainUtils.rollout_with_stats(
+                    policy=rollout_model,
+                    envs=env_iterator(),
+                    horizon=eval_env_horizon_list,
+                    use_goals=config.use_goals,
+                    context_batch=context_batch,
+                    num_episodes=num_episodes,
+                    render=False,
+                    video_dir=video_dir if config.experiment.render_video else None,
+                    epoch=epoch,
+                    video_skip=config.experiment.get("video_skip", 5),
+                    terminate_on_success=config.experiment.rollout.terminate_on_success,
+                    del_envs_after_rollouts=True,
+                    data_logger=data_logger,
+                )
 
             #### move this code to rollout_with_stats function to log results one by one ####
             # # summarize results from rollouts to tensorboard and terminal
