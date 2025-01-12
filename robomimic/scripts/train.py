@@ -367,7 +367,7 @@ def train(config, device, eval_only=False):
             # context_batch["actions"] = batch["actions"][:, 0, :]
 
             num_episodes = config.experiment.rollout.n
-            try:
+            if "icl" in config.algo_name:
                 all_rollout_logs, video_paths = TrainUtils.icl_rollout_with_stats(
                     policy=rollout_model,
                     envs=env_iterator(),
@@ -383,13 +383,12 @@ def train(config, device, eval_only=False):
                     del_envs_after_rollouts=True,
                     data_logger=data_logger,
                 )
-            except:
+            else:
                 all_rollout_logs, video_paths = TrainUtils.rollout_with_stats(
                     policy=rollout_model,
                     envs=env_iterator(),
                     horizon=eval_env_horizon_list,
                     use_goals=config.use_goals,
-                    context_batch=context_batch,
                     num_episodes=num_episodes,
                     render=False,
                     video_dir=video_dir if config.experiment.render_video else None,
