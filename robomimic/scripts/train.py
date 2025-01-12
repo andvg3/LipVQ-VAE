@@ -336,7 +336,7 @@ def train(config, device, eval_only=False):
         rollout_check = (epoch % config.experiment.rollout.rate == 0) #or (should_save_ckpt and ckpt_reason == "time") # remove this section condition, not desired when rollouts are expensive and saving frequent checkpoints
         if config.experiment.rollout.enabled and (epoch > config.experiment.rollout.warmstart) and rollout_check:
             # wrap model as a RolloutPolicy to prepare for rollouts
-            if True: #FIXME
+            if "icl" in config.algo_name:
                 rollout_model = ICLRolloutPolicy(
                     model,
                     obs_normalization_stats=obs_normalization_stats,
