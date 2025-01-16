@@ -50,7 +50,7 @@ def make_generator_helper(args):
         "TurnOffMicrowave"
     ]
 
-    eval_tasks = [task for task in all_tasks if task not in task_names]
+    eval_tasks = [task for task in all_tasks if task not in demo_tasks]
 
     ### Define dataset variants to train on ###
     generator.add_param(
