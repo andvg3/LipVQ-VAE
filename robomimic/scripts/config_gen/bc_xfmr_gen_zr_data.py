@@ -18,7 +18,7 @@ def make_generator_helper(args):
         "PnPStoveToCounter",
         "OpenSingleDoor",
         "CloseDrawer",
-        "TurnOnMicrowave",
+        # "TurnOnMicrowave",
         "TurnOnSinkFaucet",
         "TurnOnStove",
     ]
@@ -46,8 +46,8 @@ def make_generator_helper(args):
         "CoffeeSetupMug",
         "CoffeeServeMug",
         "CoffeePressButton",
-        "TurnOnMicrowave",
-        "TurnOffMicrowave"
+        # "TurnOnMicrowave",
+        # "TurnOffMicrowave"
     ]
 
     eval_tasks = [task for task in all_tasks if task not in demo_tasks]

@@ -31,7 +31,7 @@ def make_generator_helper(args):
         "PnPStoveToCounter",
         "OpenSingleDoor",
         "CloseDrawer",
-        "TurnOnMicrowave",
+        # "TurnOnMicrowave",
         "TurnOnSinkFaucet",
         "TurnOnStove",
     ]
@@ -59,9 +59,11 @@ def make_generator_helper(args):
         "CoffeeSetupMug",
         "CoffeeServeMug",
         "CoffeePressButton",
-        "TurnOnMicrowave",
-        "TurnOffMicrowave"
+        # "TurnOnMicrowave",
+        # "TurnOffMicrowave"
     ]
+
+    eval_tasks = [task for task in all_tasks if task not in demo_tasks]
 
     # set up datasets to evaluate on
     ckpt_datasets = ckpt_config["train"]["data"]
@@ -74,6 +76,7 @@ def make_generator_helper(args):
         values_and_names=[
             # (ckpt_datasets, "ckpt_datasets"),
             (get_robocasa_ds(eval_tasks, src="human", eval=eval_tasks, filter_key="50_demos"), "human-50"), # training on human datasets
+            (get_robocasa_ds(eval_tasks, src="mg", eval=eval_tasks, filter_key="3000_demos"), "mg-3000"), # training on human datasets
             # ("set-your-datasets-here"), "name"),
         ],
     )
