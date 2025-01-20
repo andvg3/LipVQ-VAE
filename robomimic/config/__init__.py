@@ -13,3 +13,4 @@ from robomimic.config.td3_bc_config import TD3_BCConfig
 from robomimic.config.diffusion_policy_config import DiffusionPolicyConfig
 from robomimic.config.act_config import ACTConfig
 from robomimic.config.icl_config import ICLConfig
+from robomimic.config.icl_mamba_config import ICLMambaConfig
