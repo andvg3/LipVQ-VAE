@@ -103,7 +103,8 @@
             "causal": false,
             "num_layers": 6,
             "embed_dim": 512,
-            "num_heads": 8
+            "num_heads": 8,
+            "fast_enabled": false
         },
         "language_conditioned": false
     },

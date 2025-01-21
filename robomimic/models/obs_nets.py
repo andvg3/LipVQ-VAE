@@ -19,6 +19,7 @@ import torch.nn.functional as F
 import torch.distributions as D
 
 from mamba_ssm import Mamba
+from transformers import AutoProcessor
 
 from robomimic.utils.python_utils import extract_class_init_kwargs_from_dict
 import robomimic.utils.tensor_utils as TensorUtils
@@ -649,6 +650,7 @@ class ICLObservationGroupEncoder(Module):
         self,
         observation_group_shapes,
         action_input_shape,
+        fast_enabled=False,
         feature_activation=nn.ReLU,
         encoder_kwargs=None,
     ):
@@ -704,19 +706,37 @@ class ICLObservationGroupEncoder(Module):
         # Create encoder for action
         action_output_shape = self.output_shape()[0]
 
-        transformer_layer = nn.TransformerEncoderLayer(
-            d_model=action_output_shape, nhead=8, dim_feedforward=256, activation="gelu"
-        )
+        self.fast_enabled = fast_enabled
+        if fast_enabled:
+            self.action_tokenizer = AutoProcessor.from_pretrained(
+                "physical-intelligence/fast", trust_remote_code=True
+            )
 
-        self.action_network = nn.Sequential(
-            nn.Linear(action_input_shape, 64),
-            nn.GELU(),
-            nn.Linear(64, 128),
-            nn.GELU(),
-            nn.Linear(128, action_output_shape),
-            nn.TransformerEncoder(transformer_layer, num_layers=4),
-            nn.Linear(action_output_shape, action_output_shape),
-        )
+            self.action_network = nn.Sequential(
+                nn.Linear(action_input_shape, 64),
+                nn.GELU(),
+                nn.Linear(64, 128),
+                nn.GELU(),
+                nn.Linear(128, action_output_shape),
+            )
+
+        else:
+            transformer_layer = nn.TransformerEncoderLayer(
+                d_model=action_output_shape,
+                nhead=8,
+                dim_feedforward=256,
+                activation="gelu",
+            )
+
+            self.action_network = nn.Sequential(
+                nn.Linear(action_input_shape, 64),
+                nn.GELU(),
+                nn.Linear(64, 128),
+                nn.GELU(),
+                nn.Linear(128, action_output_shape),
+                nn.TransformerEncoder(transformer_layer, num_layers=4),
+                nn.Linear(action_output_shape, action_output_shape),
+            )
 
     def forward(self, **inputs):
         """
@@ -756,7 +776,13 @@ class ICLObservationGroupEncoder(Module):
         context_obs = self.nets["obs"].forward(prompt_obs)
         context_obs = torch.cat([context_obs], dim=-1)
 
-        context_actions = self.action_network(prompt_actions)
+        if self.fast_enabled:
+            tokens = self.action_tokenizer(prompt_actions.cpu())
+            context_actions = self.action_tokenizer.decode(tokens)
+            context_actions = torch.from_numpy(context_actions).float().to(obs.device)
+            context_actions = self.action_network(context_actions).squeeze(0)
+        else:
+            context_actions = self.action_network(prompt_actions)
         return obs, context_obs, context_actions
 
     def output_shape(self):
@@ -1531,7 +1557,8 @@ class ICL_MIMO_Transformer(Module):
         # Encoder for all observation groups.
         self.nets["encoder"] = ICLObservationGroupEncoder(
             observation_group_shapes=input_obs_group_shapes,
-            action_input_shape=12,
+            action_input_shape=12,  # FIXME
+            fast_enabled=False,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
         )
@@ -1772,6 +1799,7 @@ class ICL_MIMO_Mamba(Module):
         mamba_sinusoidal_embedding=False,
         mamba_activation="gelu",
         mamba_nn_parameter_for_timesteps=False,
+        mamba_fast_enabled=False,
         encoder_kwargs=None,
     ):
         """
@@ -1815,7 +1843,8 @@ class ICL_MIMO_Mamba(Module):
         # Encoder for all observation groups.
         self.nets["encoder"] = ICLObservationGroupEncoder(
             observation_group_shapes=input_obs_group_shapes,
-            action_input_shape=12,
+            action_input_shape=12,  # FIXME
+            fast_enabled=mamba_fast_enabled,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
         )

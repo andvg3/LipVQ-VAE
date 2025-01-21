@@ -81,6 +81,7 @@ def mamba_args_from_config(mamba_config):
         mamba_sinusoidal_embedding=mamba_config.sinusoidal_embedding,
         mamba_activation=mamba_config.activation,
         mamba_nn_parameter_for_timesteps=mamba_config.nn_parameter_for_timesteps,
+        mamba_fast_enabled=mamba_config.fast_enabled,
     )
 
     if "num_layers" in mamba_config:
