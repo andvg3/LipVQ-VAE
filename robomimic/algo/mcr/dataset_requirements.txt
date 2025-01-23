@@ -1,0 +1,5 @@
+gsutil
+numpy
+rlds[tensorflow]==0.1.8  
+envlogger[tfds]==1.2 
+dm_reverb==0.14.0

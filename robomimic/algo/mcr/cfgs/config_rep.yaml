@@ -1,0 +1,50 @@
+defaults:
+  - _self_
+  - override hydra/launcher:  local
+  - override hydra/output:  local
+
+
+# snapshot
+save_snapshot: false
+load_snap: ""
+# replay buffer
+num_workers: 16
+batch_size: 32 #256
+train_steps: 2000000
+eval_freq: 20000
+# misc
+seed: 1
+device: cuda
+# experiment
+experiment: train_mcr
+# agent
+lr: 1e-4
+# data
+alpha: 0.2
+dataset: "droid" # "ego4d"
+use_wandb: false
+wandbproject: 
+wandbuser: 
+doaug: "none"
+datapath:
+view_list:
+  - exterior_image_1_left
+  - exterior_image_2_left
+  # - wrist_image_left
+
+agent:
+  _target_: mcr.MCR
+  device: ${device}
+  lr: ${lr}
+  hidden_dim: 1024
+  size: 34
+  tcnweight: 1.0
+  l2dist: true
+  bs: ${batch_size}
+  align_state_weight: 0.0
+  state_window: 3 # must be odd
+  use_action: false
+  state_list:
+    - cartesian_position
+    - gripper_position
+  bc_weight: 0.0
