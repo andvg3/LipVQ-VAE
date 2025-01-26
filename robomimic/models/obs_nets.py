@@ -39,6 +39,7 @@ from robomimic.models.obs_core import (
     Randomizer,
     VisualCoreLanguageConditioned,
 )
+from robomimic.models.vq_vae.backbone import VQVAE
 from robomimic.models.transformers import PositionalEncoding, GPT_Backbone
 from robomimic.macros import LANG_EMB_KEY
 
@@ -1126,6 +1127,7 @@ class ICLObservationGroupEncoder(Module):
         observation_group_shapes,
         action_input_shape,
         fast_enabled=False,
+        vq_vae_enabled=False,
         feature_activation=nn.ReLU,
         encoder_kwargs=None,
     ):
@@ -1182,6 +1184,7 @@ class ICLObservationGroupEncoder(Module):
         action_output_shape = self.output_shape()[0]
 
         self.fast_enabled = fast_enabled
+        self.vq_vae_enabled = vq_vae_enabled
         if fast_enabled:
             self.action_tokenizer = AutoProcessor.from_pretrained(
                 "expdata/robocasa/fast_tokenizer", trust_remote_code=True
@@ -1193,6 +1196,11 @@ class ICLObservationGroupEncoder(Module):
                 nn.Linear(64, 128),
                 nn.GELU(),
                 nn.Linear(128, action_output_shape),
+            )
+
+        elif vq_vae_enabled:
+            self.action_network = VQVAE(
+                feature_dim=action_input_shape, latent_dim=action_output_shape
             )
 
         else:
@@ -1256,6 +1264,10 @@ class ICLObservationGroupEncoder(Module):
             context_actions = self.action_tokenizer.decode(tokens)
             context_actions = torch.from_numpy(context_actions).float().to(obs.device)
             context_actions = self.action_network(context_actions).squeeze(0)
+        elif self.vq_vae_enabled:
+            context_actions, loss = self.action_network(prompt_actions)
+            self._vq_vae_loss = loss
+
         else:
             context_actions = self.action_network(prompt_actions)
         return obs, context_obs, context_actions
@@ -2305,6 +2317,7 @@ class ICL_MIMO_Transformer(Module):
             observation_group_shapes=input_obs_group_shapes,
             action_input_shape=12,  # FIXME
             fast_enabled=False,
+            vq_vae_enabled=False,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
         )
@@ -2546,6 +2559,7 @@ class ICL_MIMO_Mamba(Module):
         mamba_activation="gelu",
         mamba_nn_parameter_for_timesteps=False,
         mamba_fast_enabled=False,
+        mamba_vq_vae_enabled=False,
         encoder_kwargs=None,
     ):
         """
@@ -2591,9 +2605,14 @@ class ICL_MIMO_Mamba(Module):
             observation_group_shapes=input_obs_group_shapes,
             action_input_shape=12,  # FIXME
             fast_enabled=mamba_fast_enabled,
+            vq_vae_enabled=mamba_vq_vae_enabled,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
         )
+
+        self.vq_vae_enabled = mamba_vq_vae_enabled
+        if self.vq_vae_enabled:
+            self.vq_vae_model = self.nets["encoder"].action_network
 
         # flat encoder output dimension
         mamba_input_dim = self.nets["encoder"].output_shape()[0]
@@ -2735,6 +2754,9 @@ class ICL_MIMO_Mamba(Module):
             inputs, self.nets["encoder"], inputs_as_kwargs=True
         )
         assert obs.ndim == 3  # [B, T, D]
+
+        if self.vq_vae_enabled:
+            self._vq_vae_loss = self.nets["encoder"]._vq_vae_loss
 
         if mamba_encoder_outputs is None:
             obs_embeddings = self.input_embedding(obs)

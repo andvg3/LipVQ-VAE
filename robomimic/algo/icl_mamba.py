@@ -6,6 +6,7 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
 import torch.distributions as D
 
 import robomimic.models.base_nets as BaseNets
@@ -747,6 +748,7 @@ class ICLMamba(ICL):
         self.supervise_all_steps = self.algo_config.mamba.supervise_all_steps
         self.pred_future_acs = self.algo_config.mamba.pred_future_acs
         self.fast_enabled = self.algo_config.mamba.fast_enabled
+        self.vq_vae_enabled = self.algo_config.mamba.vq_vae_enabled
         # self.action_input_shape = self.algo_config.transformer.action_input_shape
         if self.pred_future_acs:
             assert self.supervise_all_steps is True
@@ -877,6 +879,12 @@ class ICLMamba_GMM(ICLMamba):
         self._set_params_from_config()
         self.nets = self.nets.float().to(self.device)
 
+        if self.vq_vae_enabled:
+            self.vq_vae_model = self.nets["policy"].vq_vae_model
+            self.vq_optimizer = optim.AdamW(
+                self.vq_vae_model.parameters(), lr=1e-3, weight_decay=1e-4
+            )  # Adjust lr and weight_decay as needed
+
     def _forward_training(self, batch, epoch=None):
         """
         Modify from super class to support GMM training.
@@ -899,6 +907,9 @@ class ICLMamba_GMM(ICLMamba):
         # Split actions
         context_actions, train_actions = batch["actions"][:mid], batch["actions"][mid:]
 
+        if self.vq_vae_enabled:
+            self.vq_optimizer.zero_grad()
+
         dists = self.nets["policy"].forward_train(
             obs_dict=train_obs,
             context_obs=context_obs,
@@ -906,6 +917,9 @@ class ICLMamba_GMM(ICLMamba):
             goal_dict=batch["goal_obs"],
             low_noise_eval=False,
         )
+
+        if self.vq_vae_enabled:
+            self._vq_vae_loss = self.nets["policy"]._vq_vae_loss
 
         # make sure that this is a batch of multivariate action distributions, so that
         # the log probability computation will be correct
@@ -947,6 +961,10 @@ class ICLMamba_GMM(ICLMamba):
 
         # loss is just negative log-likelihood of action targets
         action_loss = -predictions["log_probs"].mean()
+
+        if self.vq_vae_enabled:
+            self._vq_vae_loss.backward()
+            self.vq_optimizer.step()
         return OrderedDict(
             log_probs=-action_loss,
             action_loss=action_loss,

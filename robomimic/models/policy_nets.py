@@ -1749,6 +1749,7 @@ class ICLMambaActorNetwork(ICL_MIMO_Mamba):
         mamba_activation="gelu",
         mamba_nn_parameter_for_timesteps=False,
         mamba_fast_enabled=False,
+        mamba_vq_vae_enabled=False,
         goal_shapes=None,
         encoder_kwargs=None,
     ):
@@ -1837,6 +1838,7 @@ class ICLMambaActorNetwork(ICL_MIMO_Mamba):
             mamba_activation=mamba_activation,
             mamba_nn_parameter_for_timesteps=mamba_nn_parameter_for_timesteps,
             mamba_fast_enabled=mamba_fast_enabled,
+            mamba_vq_vae_enabled=mamba_vq_vae_enabled,
             encoder_kwargs=encoder_kwargs,
         )
 
@@ -2602,6 +2604,7 @@ class ICLMambaGMMActorNetwork(ICLMambaActorNetwork):
         mamba_activation="gelu",
         mamba_nn_parameter_for_timesteps=False,
         mamba_fast_enabled=False,
+        mamba_vq_vae_enabled=False,
         num_modes=5,
         min_std=0.01,
         std_activation="softplus",
@@ -2702,6 +2705,7 @@ class ICLMambaGMMActorNetwork(ICLMambaActorNetwork):
             mamba_activation=mamba_activation,
             mamba_nn_parameter_for_timesteps=mamba_nn_parameter_for_timesteps,
             mamba_fast_enabled=mamba_fast_enabled,
+            mamba_vq_vae_enabled=mamba_vq_vae_enabled,
             encoder_kwargs=encoder_kwargs,
             goal_shapes=goal_shapes,
         )
