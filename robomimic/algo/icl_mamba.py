@@ -748,6 +748,7 @@ class ICLMamba(ICL):
         self.supervise_all_steps = self.algo_config.mamba.supervise_all_steps
         self.pred_future_acs = self.algo_config.mamba.pred_future_acs
         self.fast_enabled = self.algo_config.mamba.fast_enabled
+        self.bin_enabled = self.algo_config.mamba.bin_enabled
         self.vq_vae_enabled = self.algo_config.mamba.vq_vae_enabled
         # self.action_input_shape = self.algo_config.transformer.action_input_shape
         if self.pred_future_acs:

@@ -105,6 +105,7 @@
             "embed_dim": 512,
             "num_heads": 8,
             "fast_enabled": false,
+            "bin_enabled": false,
             "vq_vae_enabled": false
         },
         "language_conditioned": false

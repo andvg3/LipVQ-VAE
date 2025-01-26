@@ -40,6 +40,7 @@ from robomimic.models.obs_core import (
     VisualCoreLanguageConditioned,
 )
 from robomimic.models.vq_vae.backbone import VQVAE
+from robomimic.models.bin_action.backbone import AdaptiveBinActionEmbedding
 from robomimic.models.transformers import PositionalEncoding, GPT_Backbone
 from robomimic.macros import LANG_EMB_KEY
 
@@ -1127,6 +1128,7 @@ class ICLObservationGroupEncoder(Module):
         observation_group_shapes,
         action_input_shape,
         fast_enabled=False,
+        bin_enabled=False,
         vq_vae_enabled=False,
         feature_activation=nn.ReLU,
         encoder_kwargs=None,
@@ -1184,6 +1186,7 @@ class ICLObservationGroupEncoder(Module):
         action_output_shape = self.output_shape()[0]
 
         self.fast_enabled = fast_enabled
+        self.bin_enabled = bin_enabled
         self.vq_vae_enabled = vq_vae_enabled
         if fast_enabled:
             self.action_tokenizer = AutoProcessor.from_pretrained(
@@ -1196,6 +1199,11 @@ class ICLObservationGroupEncoder(Module):
                 nn.Linear(64, 128),
                 nn.GELU(),
                 nn.Linear(128, action_output_shape),
+            )
+
+        elif bin_enabled:
+            self.action_network = AdaptiveBinActionEmbedding(
+                action_dim=action_input_shape, output_dim=action_output_shape
             )
 
         elif vq_vae_enabled:
@@ -1267,7 +1275,6 @@ class ICLObservationGroupEncoder(Module):
         elif self.vq_vae_enabled:
             context_actions, loss = self.action_network(prompt_actions)
             self._vq_vae_loss = loss
-
         else:
             context_actions = self.action_network(prompt_actions)
         return obs, context_obs, context_actions
@@ -2317,6 +2324,7 @@ class ICL_MIMO_Transformer(Module):
             observation_group_shapes=input_obs_group_shapes,
             action_input_shape=12,  # FIXME
             fast_enabled=False,
+            bin_enabled=False,
             vq_vae_enabled=False,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
@@ -2559,6 +2567,7 @@ class ICL_MIMO_Mamba(Module):
         mamba_activation="gelu",
         mamba_nn_parameter_for_timesteps=False,
         mamba_fast_enabled=False,
+        mamba_bin_enabled=False,
         mamba_vq_vae_enabled=False,
         encoder_kwargs=None,
     ):
@@ -2605,6 +2614,7 @@ class ICL_MIMO_Mamba(Module):
             observation_group_shapes=input_obs_group_shapes,
             action_input_shape=12,  # FIXME
             fast_enabled=mamba_fast_enabled,
+            bin_enabled=mamba_bin_enabled,
             vq_vae_enabled=mamba_vq_vae_enabled,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,

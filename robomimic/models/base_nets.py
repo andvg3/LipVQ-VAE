@@ -82,6 +82,7 @@ def mamba_args_from_config(mamba_config):
         mamba_activation=mamba_config.activation,
         mamba_nn_parameter_for_timesteps=mamba_config.nn_parameter_for_timesteps,
         mamba_fast_enabled=mamba_config.fast_enabled,
+        mamba_bin_enabled=mamba_config.bin_enabled,
         mamba_vq_vae_enabled=mamba_config.vq_vae_enabled,
     )
 
