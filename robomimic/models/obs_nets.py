@@ -39,7 +39,9 @@ from robomimic.models.obs_core import (
     Randomizer,
     VisualCoreLanguageConditioned,
 )
-from robomimic.models.vq_vae.backbone import VQVAE
+
+# from robomimic.models.vq_vae.backbone import VQVAE
+from robomimic.models.vq_vae.backbone_lfqvae import LFQVAE
 from robomimic.models.bin_action.backbone import AdaptiveBinActionEmbedding
 from robomimic.models.transformers import PositionalEncoding, GPT_Backbone
 from robomimic.macros import LANG_EMB_KEY
@@ -1130,6 +1132,7 @@ class ICLObservationGroupEncoder(Module):
         fast_enabled=False,
         bin_enabled=False,
         vq_vae_enabled=False,
+        ln_act_enabled=False,
         feature_activation=nn.ReLU,
         encoder_kwargs=None,
     ):
@@ -1188,6 +1191,7 @@ class ICLObservationGroupEncoder(Module):
         self.fast_enabled = fast_enabled
         self.bin_enabled = bin_enabled
         self.vq_vae_enabled = vq_vae_enabled
+        self.ln_act_enabled = ln_act_enabled
         if fast_enabled:
             self.action_tokenizer = AutoProcessor.from_pretrained(
                 "expdata/robocasa/fast_tokenizer", trust_remote_code=True
@@ -1207,8 +1211,27 @@ class ICLObservationGroupEncoder(Module):
             )
 
         elif vq_vae_enabled:
-            self.action_network = VQVAE(
+            # self.action_network = VQVAE(
+            #     feature_dim=action_input_shape, latent_dim=action_output_shape
+            # )
+            self.action_network = LFQVAE(
                 feature_dim=action_input_shape, latent_dim=action_output_shape
+            )
+
+        elif ln_act_enabled:
+            # TODO
+            self.ln_act_layer = nn.Sequential(
+                nn.Linear(action_input_shape, 64),
+                nn.GELU(),
+                nn.Linear(64, 128),
+                nn.GELU(),
+                nn.Linear(128, action_output_shape),
+            )
+            self.action_network = Mamba(
+                d_model=action_output_shape,  # Model dimension d_model
+                d_state=8,  # SSM state expansion factor
+                d_conv=4,  # Local convolution width
+                expand=2,  # Block expansion factor
             )
 
         else:
@@ -1263,6 +1286,10 @@ class ICLObservationGroupEncoder(Module):
             # pass through encoder
             outputs.append(self.nets[obs_group].forward(inputs[obs_group]))
 
+        seq_len = 10  # FIXME
+        batch_size = outputs[0].data.shape[0]
+        batch_size = int(batch_size / seq_len)
+
         obs = torch.cat(outputs, dim=-1)
         context_obs = self.nets["obs"].forward(prompt_obs)
         context_obs = torch.cat([context_obs], dim=-1)
@@ -1275,6 +1302,29 @@ class ICLObservationGroupEncoder(Module):
         elif self.vq_vae_enabled:
             context_actions, loss = self.action_network(prompt_actions)
             self._vq_vae_loss = loss
+        elif self.ln_act_enabled:
+            context_actions = self.ln_act_layer(prompt_actions)
+            context_actions = context_actions.view(batch_size, seq_len, -1)
+
+            # Compute mean of first and second halves
+            context_actions_start = context_actions[:, : seq_len // 2, :].mean(
+                dim=1, keepdim=True
+            )  # Shape: [batch_size, 1, D]
+            context_actions_end = context_actions[:, seq_len // 2 :, :].mean(
+                dim=1, keepdim=True
+            )  # Shape: [batch_size, 1, D]
+
+            # Linear interpolation across the full sequence length
+            alpha = torch.linspace(
+                0, 1, steps=seq_len, device=context_actions.device
+            ).view(
+                1, seq_len, 1
+            )  # Shape: [1, seq_len, 1]
+            context_actions_interp = (
+                1 - alpha
+            ) * context_actions_start + alpha * context_actions_end  # Shape: [batch_size, seq_len, D]
+            context_actions = self.action_network(context_actions_interp)
+            context_actions = context_actions.view(batch_size * seq_len, -1)
         else:
             context_actions = self.action_network(prompt_actions)
         return obs, context_obs, context_actions
@@ -2326,6 +2376,7 @@ class ICL_MIMO_Transformer(Module):
             fast_enabled=False,
             bin_enabled=False,
             vq_vae_enabled=False,
+            ln_act_enabled=False,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
         )
@@ -2569,6 +2620,7 @@ class ICL_MIMO_Mamba(Module):
         mamba_fast_enabled=False,
         mamba_bin_enabled=False,
         mamba_vq_vae_enabled=False,
+        mamba_ln_act_enabled=False,
         encoder_kwargs=None,
     ):
         """
@@ -2616,6 +2668,7 @@ class ICL_MIMO_Mamba(Module):
             fast_enabled=mamba_fast_enabled,
             bin_enabled=mamba_bin_enabled,
             vq_vae_enabled=mamba_vq_vae_enabled,
+            ln_act_enabled=mamba_ln_act_enabled,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
         )

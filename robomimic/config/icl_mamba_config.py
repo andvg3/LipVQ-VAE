@@ -152,6 +152,7 @@ class ICLMambaConfig(BaseConfig):
         self.algo.mamba.fast_enabled = False
         self.algo.mamba.bin_enabled = False
         self.algo.mamba.vq_vae_enabled = False
+        self.algo.mamba.ln_act_enabled = True
         self.algo.mamba.supervise_all_steps = False  # if true, supervise all intermediate actions, otherwise only final one
         self.algo.mamba.nn_parameter_for_timesteps = (
             True  # if true, use nn.Parameter otherwise use nn.Embedding

@@ -106,7 +106,8 @@
             "num_heads": 8,
             "fast_enabled": false,
             "bin_enabled": false,
-            "vq_vae_enabled": false
+            "vq_vae_enabled": false,
+            "ln_act_enabled": true
         },
         "language_conditioned": false
     },

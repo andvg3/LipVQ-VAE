@@ -95,8 +95,12 @@ if __name__ == "__main__":
     num_bins = 5
     embedding_dim = 8
 
-    embedding_layer = AdaptiveBinActionEmbedding(action_dim, num_bins, embedding_dim)
+    # Specify the path where you want to save the model
+    save_path = "adaptive_bin_action_embedding.pth"
 
+    embedding_layer = AdaptiveBinActionEmbedding(action_dim, num_bins, embedding_dim)
+    embedding_layer.load_state_dict(torch.load(save_path))
+    print(embedding_layer.running_max)
     for i in range(100):
         # Create a random batch of actions
         actions = torch.rand(4, 2)
@@ -105,4 +109,5 @@ if __name__ == "__main__":
 
         # Get the embeddings
         embeddings = embedding_layer(actions)
-        print(embedding_layer.running_max)
+
+    # Save the model's state dictionary

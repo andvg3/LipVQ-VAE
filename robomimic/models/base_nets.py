@@ -84,6 +84,7 @@ def mamba_args_from_config(mamba_config):
         mamba_fast_enabled=mamba_config.fast_enabled,
         mamba_bin_enabled=mamba_config.bin_enabled,
         mamba_vq_vae_enabled=mamba_config.vq_vae_enabled,
+        mamba_ln_act_enabled=mamba_config.ln_act_enabled,
     )
 
     if "num_layers" in mamba_config:
