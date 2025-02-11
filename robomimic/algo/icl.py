@@ -8,6 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as D
 
+import torch.optim as optim
+
 import robomimic.models.base_nets as BaseNets
 import robomimic.models.obs_nets as ObsNets
 import robomimic.models.policy_nets as PolicyNets
@@ -36,9 +38,9 @@ def algo_config_to_class(algo_config):
 
     # note: we need the check below because some configs import BCConfig and exclude
     # some of these options
-    gaussian_enabled = ("gaussian" in algo_config and algo_config.gaussian.enabled)
-    gmm_enabled = ("gmm" in algo_config and algo_config.gmm.enabled)
-    vae_enabled = ("vae" in algo_config and algo_config.vae.enabled)
+    gaussian_enabled = "gaussian" in algo_config and algo_config.gaussian.enabled
+    gmm_enabled = "gmm" in algo_config and algo_config.gmm.enabled
+    vae_enabled = "vae" in algo_config and algo_config.vae.enabled
 
     rnn_enabled = algo_config.rnn.enabled
     transformer_enabled = algo_config.transformer.enabled
@@ -79,6 +81,7 @@ class ICL(PolicyAlgo):
     """
     Normal ICL training.
     """
+
     def _create_networks(self):
         """
         Creates networks and places them into @self.nets.
@@ -89,7 +92,9 @@ class ICL(PolicyAlgo):
             goal_shapes=self.goal_shapes,
             ac_dim=self.ac_dim,
             mlp_layer_dims=self.algo_config.actor_layer_dims,
-            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(self.obs_config.encoder),
+            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(
+                self.obs_config.encoder
+            ),
         )
         self.nets = self.nets.float().to(self.device)
 
@@ -104,16 +109,17 @@ class ICL(PolicyAlgo):
 
         Returns:
             input_batch (dict): processed and filtered batch that
-                will be used for training 
+                will be used for training
         """
         input_batch = dict()
         input_batch["obs"] = {k: batch["obs"][k][:, 0, :] for k in batch["obs"]}
-        input_batch["goal_obs"] = batch.get("goal_obs", None) # goals may not be present
+        input_batch["goal_obs"] = batch.get(
+            "goal_obs", None
+        )  # goals may not be present
         input_batch["actions"] = batch["actions"][:, 0, :]
         # we move to device first before float conversion because image observation modalities will be uint8 -
         # this minimizes the amount of data transferred to GPU
         return TensorUtils.to_float(TensorUtils.to_device(input_batch, self.device))
-
 
     def train_on_batch(self, batch, epoch, validate=False):
         """
@@ -159,7 +165,9 @@ class ICL(PolicyAlgo):
             predictions (dict): dictionary containing network outputs
         """
         predictions = OrderedDict()
-        actions = self.nets["policy"](obs_dict=batch["obs"], goal_dict=batch["goal_obs"])
+        actions = self.nets["policy"](
+            obs_dict=batch["obs"], goal_dict=batch["goal_obs"]
+        )
         predictions["actions"] = actions
         return predictions
 
@@ -260,6 +268,7 @@ class ICLGaussian(ICL):
     """
     ICL training with a Gaussian policy.
     """
+
     def _create_networks(self):
         """
         Creates networks and places them into @self.nets.
@@ -277,7 +286,9 @@ class ICLGaussian(ICL):
             std_limits=(self.algo_config.gaussian.min_std, 7.5),
             std_activation=self.algo_config.gaussian.std_activation,
             low_noise_eval=self.algo_config.gaussian.low_noise_eval,
-            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(self.obs_config.encoder),
+            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(
+                self.obs_config.encoder
+            ),
         )
 
         self.nets = self.nets.float().to(self.device)
@@ -295,7 +306,7 @@ class ICLGaussian(ICL):
             predictions (dict): dictionary containing network outputs
         """
         dists = self.nets["policy"].forward_train(
-            obs_dict=batch["obs"], 
+            obs_dict=batch["obs"],
             goal_dict=batch["goal_obs"],
         )
 
@@ -343,7 +354,7 @@ class ICLGaussian(ICL):
         """
         log = PolicyAlgo.log_info(self, info)
         log["Loss"] = info["losses"]["action_loss"].item()
-        log["Log_Likelihood"] = info["losses"]["log_probs"].item() 
+        log["Log_Likelihood"] = info["losses"]["log_probs"].item()
         if "policy_grad_norms" in info:
             log["Policy_Grad_Norms"] = info["policy_grad_norms"]
         return log
@@ -353,6 +364,7 @@ class ICLGMM(ICLGaussian):
     """
     ICL training with a Gaussian Mixture Model policy.
     """
+
     def _create_networks(self):
         """
         Creates networks and places them into @self.nets.
@@ -369,7 +381,9 @@ class ICLGMM(ICLGaussian):
             min_std=self.algo_config.gmm.min_std,
             std_activation=self.algo_config.gmm.std_activation,
             low_noise_eval=self.algo_config.gmm.low_noise_eval,
-            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(self.obs_config.encoder),
+            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(
+                self.obs_config.encoder
+            ),
         )
 
         self.nets = self.nets.float().to(self.device)
@@ -379,6 +393,7 @@ class ICLVAE(ICL):
     """
     ICL training with a VAE policy.
     """
+
     def _create_networks(self):
         """
         Creates networks and places them into @self.nets.
@@ -389,10 +404,12 @@ class ICLVAE(ICL):
             goal_shapes=self.goal_shapes,
             ac_dim=self.ac_dim,
             device=self.device,
-            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(self.obs_config.encoder),
+            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(
+                self.obs_config.encoder
+            ),
             **VAENets.vae_args_from_config(self.algo_config.vae),
         )
-        
+
         self.nets = self.nets.float().to(self.device)
 
     def train_on_batch(self, batch, epoch, validate=False):
@@ -400,8 +417,13 @@ class ICLVAE(ICL):
         Update from superclass to set categorical temperature, for categorical VAEs.
         """
         if self.algo_config.vae.prior.use_categorical:
-            temperature = self.algo_config.vae.prior.categorical_init_temp - epoch * self.algo_config.vae.prior.categorical_temp_anneal_step
-            temperature = max(temperature, self.algo_config.vae.prior.categorical_min_temp)
+            temperature = (
+                self.algo_config.vae.prior.categorical_init_temp
+                - epoch * self.algo_config.vae.prior.categorical_temp_anneal_step
+            )
+            temperature = max(
+                temperature, self.algo_config.vae.prior.categorical_min_temp
+            )
             self.nets["policy"].set_gumbel_temperature(temperature)
         return super(ICLVAE, self).train_on_batch(batch, epoch, validate=validate)
 
@@ -479,7 +501,9 @@ class ICLVAE(ICL):
         if self.algo_config.vae.prior.use_categorical:
             log["Gumbel_Temperature"] = self.nets["policy"].get_gumbel_temperature()
         else:
-            log["Encoder_Variance"] = info["predictions"]["encoder_variance"].mean().item()
+            log["Encoder_Variance"] = (
+                info["predictions"]["encoder_variance"].mean().item()
+            )
         if "policy_grad_norms" in info:
             log["Policy_Grad_Norms"] = info["policy_grad_norms"]
         return log
@@ -489,6 +513,7 @@ class ICLRNN(ICL):
     """
     ICL training with an RNN policy.
     """
+
     def _create_networks(self):
         """
         Creates networks and places them into @self.nets.
@@ -499,7 +524,9 @@ class ICLRNN(ICL):
             goal_shapes=self.goal_shapes,
             ac_dim=self.ac_dim,
             mlp_layer_dims=self.algo_config.actor_layer_dims,
-            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(self.obs_config.encoder),
+            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(
+                self.obs_config.encoder
+            ),
             **BaseNets.rnn_args_from_config(self.algo_config.rnn),
         )
 
@@ -525,7 +552,9 @@ class ICLRNN(ICL):
         """
         input_batch = dict()
         input_batch["obs"] = batch["obs"]
-        input_batch["goal_obs"] = batch.get("goal_obs", None) # goals may not be present
+        input_batch["goal_obs"] = batch.get(
+            "goal_obs", None
+        )  # goals may not be present
         input_batch["actions"] = batch["actions"]
 
         if self._rnn_is_open_loop:
@@ -534,7 +563,9 @@ class ICLRNN(ICL):
             # on the rnn hidden state.
             n_steps = batch["actions"].shape[1]
             obs_seq_start = TensorUtils.index_at_time(batch["obs"], ind=0)
-            input_batch["obs"] = TensorUtils.unsqueeze_expand_at(obs_seq_start, size=n_steps, dim=1)
+            input_batch["obs"] = TensorUtils.unsqueeze_expand_at(
+                obs_seq_start, size=n_steps, dim=1
+            )
 
         # we move to device first before float conversion because image observation modalities will be uint8 -
         # this minimizes the amount of data transferred to GPU
@@ -555,7 +586,9 @@ class ICLRNN(ICL):
 
         if self._rnn_hidden_state is None or self._rnn_counter % self._rnn_horizon == 0:
             batch_size = list(obs_dict.values())[0].shape[0]
-            self._rnn_hidden_state = self.nets["policy"].get_rnn_init_state(batch_size=batch_size, device=self.device)
+            self._rnn_hidden_state = self.nets["policy"].get_rnn_init_state(
+                batch_size=batch_size, device=self.device
+            )
 
             if self._rnn_is_open_loop:
                 # remember the initial observation, and use it instead of the current observation
@@ -569,7 +602,8 @@ class ICLRNN(ICL):
 
         self._rnn_counter += 1
         action, self._rnn_hidden_state = self.nets["policy"].forward_step(
-            obs_to_use, goal_dict=goal_dict, rnn_state=self._rnn_hidden_state)
+            obs_to_use, goal_dict=goal_dict, rnn_state=self._rnn_hidden_state
+        )
         return action
 
     def reset(self):
@@ -584,6 +618,7 @@ class ICLRNN_GMM(ICLRNN):
     """
     ICL training with an RNN GMM policy.
     """
+
     def _create_networks(self):
         """
         Creates networks and places them into @self.nets.
@@ -601,7 +636,9 @@ class ICLRNN_GMM(ICLRNN):
             min_std=self.algo_config.gmm.min_std,
             std_activation=self.algo_config.gmm.std_activation,
             low_noise_eval=self.algo_config.gmm.low_noise_eval,
-            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(self.obs_config.encoder),
+            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(
+                self.obs_config.encoder
+            ),
             **BaseNets.rnn_args_from_config(self.algo_config.rnn),
         )
 
@@ -625,13 +662,13 @@ class ICLRNN_GMM(ICLRNN):
             predictions (dict): dictionary containing network outputs
         """
         dists = self.nets["policy"].forward_train(
-            obs_dict=batch["obs"], 
+            obs_dict=batch["obs"],
             goal_dict=batch["goal_obs"],
         )
 
         # make sure that this is a batch of multivariate action distributions, so that
         # the log probability computation will be correct
-        assert len(dists.batch_shape) == 2 # [B, T]
+        assert len(dists.batch_shape) == 2  # [B, T]
         log_probs = dists.log_prob(batch["actions"])
 
         predictions = OrderedDict(
@@ -673,7 +710,7 @@ class ICLRNN_GMM(ICLRNN):
         """
         log = PolicyAlgo.log_info(self, info)
         log["Loss"] = info["losses"]["action_loss"].item()
-        log["Log_Likelihood"] = info["losses"]["log_probs"].item() 
+        log["Log_Likelihood"] = info["losses"]["log_probs"].item()
         if "policy_grad_norms" in info:
             log["Policy_Grad_Norms"] = info["policy_grad_norms"]
         return log
@@ -683,6 +720,7 @@ class ICLTransformer(ICL):
     """
     ICL training with a Transformer policy.
     """
+
     def _create_networks(self):
         """
         Creates networks and places them into @self.nets.
@@ -694,12 +732,14 @@ class ICLTransformer(ICL):
             obs_shapes=self.obs_shapes,
             goal_shapes=self.goal_shapes,
             ac_dim=self.ac_dim,
-            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(self.obs_config.encoder),
+            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(
+                self.obs_config.encoder
+            ),
             **BaseNets.transformer_args_from_config(self.algo_config.transformer),
         )
         self._set_params_from_config()
         self.nets = self.nets.float().to(self.device)
-        
+
     def _set_params_from_config(self):
         """
         Read specific config variables we need for training / eval.
@@ -708,6 +748,10 @@ class ICLTransformer(ICL):
         self.context_length = self.algo_config.transformer.context_length
         self.supervise_all_steps = self.algo_config.transformer.supervise_all_steps
         self.pred_future_acs = self.algo_config.transformer.pred_future_acs
+        self.fast_enabled = self.algo_config.transformer.fast_enabled
+        self.bin_enabled = self.algo_config.transformer.bin_enabled
+        self.vq_vae_enabled = self.algo_config.transformer.vq_vae_enabled
+        self.ln_act_enabled = self.algo_config.transformer.ln_act_enabled
         # self.action_input_shape = self.algo_config.transformer.action_input_shape
         if self.pred_future_acs:
             assert self.supervise_all_steps is True
@@ -726,7 +770,9 @@ class ICLTransformer(ICL):
         input_batch = dict()
         h = self.context_length
         input_batch["obs"] = {k: batch["obs"][k][:, :h, :] for k in batch["obs"]}
-        input_batch["goal_obs"] = batch.get("goal_obs", None) # goals may not be present
+        input_batch["goal_obs"] = batch.get(
+            "goal_obs", None
+        )  # goals may not be present
 
         if self.supervise_all_steps:
             # supervision on entire sequence (instead of just current timestep)
@@ -734,15 +780,17 @@ class ICLTransformer(ICL):
                 ac_start = h - 1
             else:
                 ac_start = 0
-            input_batch["actions"] = batch["actions"][:, ac_start:ac_start+h, :]
+            input_batch["actions"] = batch["actions"][:, ac_start : ac_start + h, :]
         else:
             # just use current timestep
-            input_batch["actions"] = batch["actions"][:, h-1, :]
+            input_batch["actions"] = batch["actions"][:, h - 1, :]
 
         if self.pred_future_acs:
             assert input_batch["actions"].shape[1] == h
 
-        input_batch = TensorUtils.to_device(TensorUtils.to_float(input_batch), self.device)
+        input_batch = TensorUtils.to_device(
+            TensorUtils.to_float(input_batch), self.device
+        )
         return input_batch
 
     def _forward_training(self, batch, epoch=None):
@@ -759,14 +807,18 @@ class ICLTransformer(ICL):
         """
         # ensure that transformer context length is consistent with temporal dimension of observations
         TensorUtils.assert_size_at_dim(
-            batch["obs"], 
-            size=(self.context_length), 
-            dim=1, 
-            msg="Error: expect temporal dimension of obs batch to match transformer context length {}".format(self.context_length),
+            batch["obs"],
+            size=(self.context_length),
+            dim=1,
+            msg="Error: expect temporal dimension of obs batch to match transformer context length {}".format(
+                self.context_length
+            ),
         )
 
         predictions = OrderedDict()
-        predictions["actions"] = self.nets["policy"](obs_dict=batch["obs"], actions=None, goal_dict=batch["goal_obs"])
+        predictions["actions"] = self.nets["policy"](
+            obs_dict=batch["obs"], actions=None, goal_dict=batch["goal_obs"]
+        )
         if not self.supervise_all_steps:
             # only supervise final timestep
             predictions["actions"] = predictions["actions"][:, -1, :]
@@ -782,11 +834,13 @@ class ICLTransformer(ICL):
             action (torch.Tensor): action tensor
         """
         assert not self.nets.training
-        
+
         context_obs = context_batch["obs"]
         context_action = context_batch["actions"]
 
-        output = self.nets["policy"](obs_dict, context_obs, actions=context_action, goal_dict=goal_dict)
+        output = self.nets["policy"](
+            obs_dict, context_obs, actions=context_action, goal_dict=goal_dict
+        )
 
         if self.supervise_all_steps:
             if self.algo_config.transformer.pred_future_acs:
@@ -798,12 +852,12 @@ class ICLTransformer(ICL):
 
         return output
 
-        
 
 class ICLTransformer_GMM(ICLTransformer):
     """
     ICL training with a Transformer GMM policy.
     """
+
     def _create_networks(self):
         """
         Creates networks and places them into @self.nets.
@@ -820,11 +874,19 @@ class ICLTransformer_GMM(ICLTransformer):
             min_std=self.algo_config.gmm.min_std,
             std_activation=self.algo_config.gmm.std_activation,
             low_noise_eval=self.algo_config.gmm.low_noise_eval,
-            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(self.obs_config.encoder),
+            encoder_kwargs=ObsUtils.obs_encoder_kwargs_from_config(
+                self.obs_config.encoder
+            ),
             **BaseNets.transformer_args_from_config(self.algo_config.transformer),
         )
         self._set_params_from_config()
         self.nets = self.nets.float().to(self.device)
+
+        if self.vq_vae_enabled:
+            self.vq_vae_model = self.nets["policy"].vq_vae_model
+            self.vq_optimizer = optim.AdamW(
+                self.vq_vae_model.parameters(), lr=1e-3, weight_decay=1e-4
+            )  # Adjust lr and weight_decay as needed
 
     def _forward_training(self, batch, epoch=None):
         """
@@ -832,11 +894,13 @@ class ICLTransformer_GMM(ICLTransformer):
         """
         # ensure that transformer context length is consistent with temporal dimension of observations
         TensorUtils.assert_size_at_dim(
-            batch["obs"], 
-            size=(self.context_length), 
-            dim=1, 
-            msg="Error: expect temporal dimension of obs batch to match transformer context length {}".format(self.context_length),
-        )  
+            batch["obs"],
+            size=(self.context_length),
+            dim=1,
+            msg="Error: expect temporal dimension of obs batch to match transformer context length {}".format(
+                self.context_length
+            ),
+        )
         # Split the observation into halves
         mid = batch["obs"]["lang_emb"].shape[0] // 2
         # Split observations
@@ -846,6 +910,9 @@ class ICLTransformer_GMM(ICLTransformer):
         # Split actions
         context_actions, train_actions = batch["actions"][:mid], batch["actions"][mid:]
 
+        if self.vq_vae_enabled:
+            self.vq_optimizer.zero_grad()
+
         dists = self.nets["policy"].forward_train(
             obs_dict=train_obs,
             context_obs=context_obs,
@@ -854,9 +921,12 @@ class ICLTransformer_GMM(ICLTransformer):
             low_noise_eval=False,
         )
 
+        if self.vq_vae_enabled:
+            self._vq_vae_loss = self.nets["policy"]._vq_vae_loss
+
         # make sure that this is a batch of multivariate action distributions, so that
         # the log probability computation will be correct
-        assert len(dists.batch_shape) == 2 # [B, T]
+        assert len(dists.batch_shape) == 2  # [B, T]
 
         if not self.supervise_all_steps:
             # only use final timestep prediction by making a new distribution with only final timestep.
@@ -866,7 +936,9 @@ class ICLTransformer_GMM(ICLTransformer):
                 scale=dists.component_distribution.base_dist.scale[:, -1],
             )
             component_distribution = D.Independent(component_distribution, 1)
-            mixture_distribution = D.Categorical(logits=dists.mixture_distribution.logits[:, -1])
+            mixture_distribution = D.Categorical(
+                logits=dists.mixture_distribution.logits[:, -1]
+            )
             dists = D.MixtureSameFamily(
                 mixture_distribution=mixture_distribution,
                 component_distribution=component_distribution,
@@ -892,6 +964,10 @@ class ICLTransformer_GMM(ICLTransformer):
 
         # loss is just negative log-likelihood of action targets
         action_loss = -predictions["log_probs"].mean()
+
+        if self.vq_vae_enabled:
+            self._vq_vae_loss.backward()
+            self.vq_optimizer.step()
         return OrderedDict(
             log_probs=-action_loss,
             action_loss=action_loss,
@@ -908,7 +984,7 @@ class ICLTransformer_GMM(ICLTransformer):
         """
         log = PolicyAlgo.log_info(self, info)
         log["Loss"] = info["losses"]["action_loss"].item()
-        log["Log_Likelihood"] = info["losses"]["log_probs"].item() 
+        log["Log_Likelihood"] = info["losses"]["log_probs"].item()
         if "policy_grad_norms" in info:
             log["Policy_Grad_Norms"] = info["policy_grad_norms"]
         return log

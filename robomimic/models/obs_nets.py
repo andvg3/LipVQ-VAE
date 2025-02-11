@@ -40,8 +40,12 @@ from robomimic.models.obs_core import (
     VisualCoreLanguageConditioned,
 )
 
-# from robomimic.models.vq_vae.backbone import VQVAE
+from robomimic.models.vq_vae.backbone import VQVAE
 from robomimic.models.vq_vae.backbone_lfqvae import LFQVAE
+from robomimic.models.vq_vae.backbone_lfqvae_v2 import LLFQVAE
+from robomimic.models.vq_vae.backbone_lfqvae_v3 import LFQVAE_V3
+from robomimic.models.vq_vae.backbone_lfqvae_v4 import LLFQVAE_V3
+from robomimic.models.vq_vae.backbone_lfqvae_lipschitz import LFQVAE
 from robomimic.models.bin_action.backbone import AdaptiveBinActionEmbedding
 from robomimic.models.transformers import PositionalEncoding, GPT_Backbone
 from robomimic.macros import LANG_EMB_KEY
@@ -1194,8 +1198,8 @@ class ICLObservationGroupEncoder(Module):
         self.ln_act_enabled = ln_act_enabled
         if fast_enabled:
             self.action_tokenizer = AutoProcessor.from_pretrained(
-                "expdata/robocasa/fast_tokenizer", trust_remote_code=True
-            )
+                "physical-intelligence/fast", trust_remote_code=True
+            ).from_pretrained("expdata/robocasa/fast_tokenizer")
 
             self.action_network = nn.Sequential(
                 nn.Linear(action_input_shape, 64),
@@ -1214,24 +1218,29 @@ class ICLObservationGroupEncoder(Module):
             # self.action_network = VQVAE(
             #     feature_dim=action_input_shape, latent_dim=action_output_shape
             # )
-            self.action_network = LFQVAE(
+            # self.action_network = LFQVAE(
+            #     feature_dim=action_input_shape, latent_dim=action_output_shape
+            # )
+            # self.action_network = LLFQVAE(
+            #     feature_dim=action_input_shape, latent_dim=action_output_shape
+            # )
+            self.action_network = LLFQVAE_V3(
                 feature_dim=action_input_shape, latent_dim=action_output_shape
             )
-
         elif ln_act_enabled:
-            # TODO
+            self.action_network = Mamba(
+                d_model=action_input_shape,  # Model dimension d_model
+                d_state=8,  # SSM state expansion factor
+                d_conv=4,  # Local convolution width
+                expand=2,  # Block expansion factor
+            )
+
             self.ln_act_layer = nn.Sequential(
                 nn.Linear(action_input_shape, 64),
                 nn.GELU(),
                 nn.Linear(64, 128),
                 nn.GELU(),
                 nn.Linear(128, action_output_shape),
-            )
-            self.action_network = Mamba(
-                d_model=action_output_shape,  # Model dimension d_model
-                d_state=8,  # SSM state expansion factor
-                d_conv=4,  # Local convolution width
-                expand=2,  # Block expansion factor
             )
 
         else:
@@ -1251,6 +1260,8 @@ class ICLObservationGroupEncoder(Module):
                 nn.TransformerEncoder(transformer_layer, num_layers=4),
                 nn.Linear(action_output_shape, action_output_shape),
             )
+
+        self._vis_counter = 0
 
     def forward(self, **inputs):
         """
@@ -1303,30 +1314,28 @@ class ICLObservationGroupEncoder(Module):
             context_actions, loss = self.action_network(prompt_actions)
             self._vq_vae_loss = loss
         elif self.ln_act_enabled:
-            context_actions = self.ln_act_layer(prompt_actions)
-            context_actions = context_actions.view(batch_size, seq_len, -1)
-
-            # Compute mean of first and second halves
-            context_actions_start = context_actions[:, : seq_len // 2, :].mean(
-                dim=1, keepdim=True
-            )  # Shape: [batch_size, 1, D]
-            context_actions_end = context_actions[:, seq_len // 2 :, :].mean(
-                dim=1, keepdim=True
-            )  # Shape: [batch_size, 1, D]
-
-            # Linear interpolation across the full sequence length
-            alpha = torch.linspace(
-                0, 1, steps=seq_len, device=context_actions.device
-            ).view(
-                1, seq_len, 1
-            )  # Shape: [1, seq_len, 1]
-            context_actions_interp = (
-                1 - alpha
-            ) * context_actions_start + alpha * context_actions_end  # Shape: [batch_size, seq_len, D]
-            context_actions = self.action_network(context_actions_interp)
+            prompt_actions = prompt_actions.view(batch_size, seq_len, -1)
+            context_actions = self.action_network(prompt_actions)
             context_actions = context_actions.view(batch_size * seq_len, -1)
+            context_actions = self.ln_act_layer(context_actions)
         else:
             context_actions = self.action_network(prompt_actions)
+
+        if self._vis_counter == 0:
+            self._store_vis = [context_actions]
+        else:
+            self._store_vis.append(context_actions)
+        self._vis_counter += 1
+        if self._vis_counter == 10:
+            self._store_vis = torch.cat(self._store_vis, dim=0)
+            print(self._store_vis.data.shape)
+            torch.save(
+                self._store_vis,
+                "/home/anvuong/Desktop/robocasa/expdata/robocasa/action/proposed_action_v4.pt",
+            )
+            import sys
+
+            sys.exit()
         return obs, context_obs, context_actions
 
     def output_shape(self):
@@ -2328,6 +2337,10 @@ class ICL_MIMO_Transformer(Module):
         transformer_block_output_dropout=0.1,
         transformer_sinusoidal_embedding=False,
         transformer_activation="gelu",
+        transformer_fast_enabled=False,
+        transformer_bin_enabled=False,
+        transformer_vq_vae_enabled=False,
+        transformer_ln_act_enabled=False,
         transformer_nn_parameter_for_timesteps=False,
         encoder_kwargs=None,
     ):
@@ -2373,13 +2386,17 @@ class ICL_MIMO_Transformer(Module):
         self.nets["encoder"] = ICLObservationGroupEncoder(
             observation_group_shapes=input_obs_group_shapes,
             action_input_shape=12,  # FIXME
-            fast_enabled=False,
-            bin_enabled=False,
-            vq_vae_enabled=False,
-            ln_act_enabled=False,
+            fast_enabled=transformer_fast_enabled,
+            bin_enabled=transformer_bin_enabled,
+            vq_vae_enabled=transformer_vq_vae_enabled,
+            ln_act_enabled=transformer_ln_act_enabled,
             encoder_kwargs=encoder_kwargs,
             feature_activation=None,
         )
+
+        self.vq_vae_enabled = transformer_vq_vae_enabled
+        if transformer_vq_vae_enabled:
+            self.vq_vae_model = self.nets["encoder"].action_network
 
         # flat encoder output dimension
         transformer_input_dim = self.nets["encoder"].output_shape()[0]
@@ -2532,6 +2549,9 @@ class ICL_MIMO_Transformer(Module):
             inputs, self.nets["encoder"], inputs_as_kwargs=True
         )
         assert obs.ndim == 3  # [B, T, D]
+
+        if self.vq_vae_enabled:
+            self._vq_vae_loss = self.nets["encoder"]._vq_vae_loss
 
         if transformer_encoder_outputs is None:
             obs_embeddings = self.input_embedding(obs)
