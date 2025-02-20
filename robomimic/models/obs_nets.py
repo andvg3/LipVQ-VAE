@@ -1221,9 +1221,6 @@ class ICLObservationGroupEncoder(Module):
             # self.action_network = VQVAE(
             #     feature_dim=action_input_shape, latent_dim=action_output_shape
             # )
-            # self.action_network = LFQVAE(
-            #     feature_dim=action_input_shape, latent_dim=action_output_shape
-            # )
             # self.action_network = LLFQVAE(
             #     feature_dim=action_input_shape, latent_dim=action_output_shape
             # )
