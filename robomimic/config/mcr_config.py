@@ -151,6 +151,10 @@ class MCRConfig(BaseConfig):
         self.algo.transformer.activation = (
             "gelu"  # activation function for MLP in Transformer Block
         )
+        self.algo.transformer.fast_enabled = False
+        self.algo.transformer.bin_enabled = False
+        self.algo.transformer.vq_vae_enabled = False
+        self.algo.transformer.ln_act_enabled = True
         self.algo.transformer.supervise_all_steps = False  # if true, supervise all intermediate actions, otherwise only final one
         self.algo.transformer.nn_parameter_for_timesteps = (
             True  # if true, use nn.Parameter otherwise use nn.Embedding

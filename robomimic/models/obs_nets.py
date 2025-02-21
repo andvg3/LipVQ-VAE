@@ -21,6 +21,7 @@ import torchvision.transforms as T
 
 # from mamba_ssm import Mamba
 from transformers import AutoProcessor
+import clip
 
 from robomimic.utils.python_utils import extract_class_init_kwargs_from_dict
 import robomimic.utils.tensor_utils as TensorUtils
@@ -1201,8 +1202,10 @@ class ICLObservationGroupEncoder(Module):
                 "physical-intelligence/fast", trust_remote_code=True
             ).from_pretrained("expdata/robocasa/fast_tokenizer")
 
+            self.clip_model, _ = clip.load("ViT-B/32")
+
             self.action_network = nn.Sequential(
-                nn.Linear(action_input_shape, 64),
+                nn.Linear(512, 64),
                 nn.GELU(),
                 nn.Linear(64, 128),
                 nn.GELU(),
@@ -1306,9 +1309,33 @@ class ICLObservationGroupEncoder(Module):
         context_obs = torch.cat([context_obs], dim=-1)
 
         if self.fast_enabled:
-            tokens = self.action_tokenizer(prompt_actions.cpu().numpy())
-            context_actions = self.action_tokenizer.decode(tokens)
-            context_actions = torch.from_numpy(context_actions).float().to(obs.device)
+            prompt_actions = prompt_actions.view(batch_size, seq_len, -1)
+            aggregated_vector_list = []
+            for idx in range(batch_size):
+                prompt_actions_idx = prompt_actions[idx]
+                tokens = self.action_tokenizer(prompt_actions_idx.cpu().numpy())
+                clip_tokens = clip.tokenize(list(map(str, tokens[0]))).to(
+                    obs.device
+                )  # Tokenize using CLIP's tokenizer
+
+                with torch.no_grad():
+                    latent_vector = self.clip_model.encode_text(clip_tokens)
+
+                # Normalize the latent vector
+                latent_vector = latent_vector / latent_vector.norm(dim=-1, keepdim=True)
+                D, dim = latent_vector.shape
+
+                if D >= seq_len:
+                    indices = torch.linspace(0, D - 1, steps=seq_len).long()
+                    aggregated_vector = latent_vector[indices]
+                else:
+                    aggregated_vector = torch.zeros(
+                        seq_len, dim, device=latent_vector.device
+                    )
+                    aggregated_vector[:D] = latent_vector
+                aggregated_vector_list.append(aggregated_vector)
+
+            context_actions = torch.cat(aggregated_vector_list, dim=0)
             context_actions = self.action_network(context_actions).squeeze(0)
         elif self.vq_vae_enabled:
             context_actions, loss = self.action_network(prompt_actions)
@@ -1335,6 +1362,7 @@ class ICLObservationGroupEncoder(Module):
         #     )
         #     import sys
 
+        #     sys.exit()
         #     sys.exit()
         return obs, context_obs, context_actions
 

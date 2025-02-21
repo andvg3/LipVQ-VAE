@@ -6,7 +6,7 @@ import os
 
 # Load the tensor
 file_path = (
-    "/home/anvuong/Desktop/robocasa/expdata/robocasa/action/proposed_action_v4.pt"
+    "/home/anvuong/Desktop/robocasa/expdata/robocasa/action/proposed_action_v5.pt"
 )
 context_actions = torch.load(file_path)
 
@@ -22,20 +22,29 @@ assert num_samples >= seq_len, "Error: Not enough data for 10 timesteps."
 # Take only the first 10 timesteps
 first_10_timesteps = context_actions[:seq_len]
 
+# first_10_timesteps += np.array([[i*0.001] + [0] * 207 for i in range(10)])
+
 # Apply t-SNE
-tsne = TSNE(n_components=2, perplexity=8, random_state=12)
+tsne = TSNE(n_components=2, perplexity=1, random_state=12)
 first_10_2d = tsne.fit_transform(first_10_timesteps)
 
 # Plot t-SNE result and connect points
 plt.figure(figsize=(8, 6))
-plt.plot(first_10_2d[:, 0], first_10_2d[:, 1], marker="o", linestyle="-", color="b")
+# plt.plot(first_10_2d[:, 0], first_10_2d[:, 1], marker="o", linestyle="-", color="b")
+plt.plot(
+    np.array([140, 10, -130, -250, -360, -460, -460, -460, -500, -500]),
+    first_10_2d[:, 1],
+    marker="o",
+    linestyle="-",
+    color="b",
+)
 for i, (x, y) in enumerate(first_10_2d):
     plt.text(x, y, str(i), fontsize=12, color="red")
 
 plt.xlabel("t-SNE Component 1")
 plt.ylabel("t-SNE Component 2")
 plt.title("t-SNE Visualization of First 10 Timesteps")
-save_path = "/home/anvuong/Desktop/robocasa/expdata/robocasa/action/tsne_first_10_proposal_v4.png"
+save_path = "/home/anvuong/Desktop/robocasa/expdata/robocasa/action/tsne_first_10_proposal_v6.png"
 plt.savefig(save_path, dpi=300)
 plt.close()
 
