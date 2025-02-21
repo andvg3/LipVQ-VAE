@@ -45,3 +45,5 @@ class ACTConfig(BaseConfig):
         self.algo.act.nheads = 8                                    # dropout probability for attention outputs for each transformer block
         self.algo.act.latent_dim = 32                               # latent dim of VAE
         self.algo.act.kl_weight = 20                                # KL weight of VAE
+
+        self.algo.language_conditioned = False                      # whether policy is language conditioned

@@ -19,7 +19,7 @@ import torch.nn.functional as F
 import torch.distributions as D
 import torchvision.transforms as T
 
-from mamba_ssm import Mamba
+# from mamba_ssm import Mamba
 from transformers import AutoProcessor
 
 from robomimic.utils.python_utils import extract_class_init_kwargs_from_dict
@@ -1218,7 +1218,7 @@ class ICLObservationGroupEncoder(Module):
             # self.action_network = VQVAE(
             #     feature_dim=action_input_shape, latent_dim=action_output_shape
             # )
-            # self.action_network = LFQVAE(
+            # # self.action_network = LFQVAE(
             #     feature_dim=action_input_shape, latent_dim=action_output_shape
             # )
             # self.action_network = LLFQVAE(
@@ -1321,21 +1321,21 @@ class ICLObservationGroupEncoder(Module):
         else:
             context_actions = self.action_network(prompt_actions)
 
-        if self._vis_counter == 0:
-            self._store_vis = [context_actions]
-        else:
-            self._store_vis.append(context_actions)
-        self._vis_counter += 1
-        if self._vis_counter == 10:
-            self._store_vis = torch.cat(self._store_vis, dim=0)
-            print(self._store_vis.data.shape)
-            torch.save(
-                self._store_vis,
-                "/home/anvuong/Desktop/robocasa/expdata/robocasa/action/proposed_action_v4.pt",
-            )
-            import sys
+        # if self._vis_counter == 0:
+        #     self._store_vis = [context_actions]
+        # else:
+        #     self._store_vis.append(context_actions)
+        # self._vis_counter += 1
+        # if self._vis_counter == 10:
+        #     self._store_vis = torch.cat(self._store_vis, dim=0)
+        #     print(self._store_vis.data.shape)
+        #     torch.save(
+        #         self._store_vis,
+        #         "/home/anvuong/Desktop/robocasa/expdata/robocasa/action/proposed_action_v4.pt",
+        #     )
+        #     import sys
 
-            sys.exit()
+        #     sys.exit()
         return obs, context_obs, context_actions
 
     def output_shape(self):
