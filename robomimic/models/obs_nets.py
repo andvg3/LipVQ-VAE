@@ -18,6 +18,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.distributions as D
 import torchvision.transforms as T
+from torch.nn.utils import spectral_norm
 
 # from mamba_ssm import Mamba
 from transformers import AutoProcessor
@@ -46,6 +47,7 @@ from robomimic.models.vq_vae.backbone_lfqvae import LFQVAE
 from robomimic.models.vq_vae.backbone_lfqvae_v2 import LLFQVAE
 from robomimic.models.vq_vae.backbone_lfqvae_v3 import LFQVAE_V3
 from robomimic.models.vq_vae.backbone_lfqvae_v4 import LLFQVAE_V3
+from robomimic.models.vq_vae.backbone_lfqvae_v5 import LLFQVAE_V4
 from robomimic.models.vq_vae.backbone_lfqvae_lipschitz import LFQVAE
 from robomimic.models.bin_action.backbone import AdaptiveBinActionEmbedding
 from robomimic.models.transformers import PositionalEncoding, GPT_Backbone
@@ -1227,7 +1229,10 @@ class ICLObservationGroupEncoder(Module):
             # self.action_network = LLFQVAE(
             #     feature_dim=action_input_shape, latent_dim=action_output_shape
             # )
-            self.action_network = LLFQVAE_V3(
+            # self.action_network = LLFQVAE_V3(
+            #     feature_dim=action_input_shape, latent_dim=action_output_shape
+            # )
+            self.action_network = LLFQVAE_V4(
                 feature_dim=action_input_shape, latent_dim=action_output_shape
             )
         elif ln_act_enabled:
@@ -1255,11 +1260,11 @@ class ICLObservationGroupEncoder(Module):
             )
 
             self.action_network = nn.Sequential(
-                nn.Linear(action_input_shape, 64),
+                spectral_norm(nn.Linear(action_input_shape, 64)),
                 nn.GELU(),
-                nn.Linear(64, 128),
+                spectral_norm(nn.Linear(64, 128)),
                 nn.GELU(),
-                nn.Linear(128, action_output_shape),
+                spectral_norm(nn.Linear(128, action_output_shape)),
                 nn.TransformerEncoder(transformer_layer, num_layers=4),
                 nn.Linear(action_output_shape, action_output_shape),
             )

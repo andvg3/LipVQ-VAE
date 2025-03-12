@@ -1,74 +1,48 @@
-import torch
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
-from sklearn.manifold import TSNE
 
-# File paths and titles
-file_paths = {
-    "MLP": "mlp_action.pt",
-    "Bin": "bin_action.pt",
-    "FAST": "fast_action_v2.pt",
-    "VQ-VAE": "vq_vae_action.pt",
-    "LFQ-VAE": "lfq_vae_action.pt",
-    "LipFQ-VAE (Ours)": "proposed_action_v5.pt",
-}
+# Define action tokenizers (methods) and corresponding values
+action_tokenizers = ["MLP", "Bin", "FAST", "VQ-VAE", "LFQ-VAE", "LipVQ-VAE (Ours)"]
+smoothness_scores = np.array([5.71, 12.57, 5.67, 4.79, 2.34, 0.63])
+success_rates = np.array([0.442, 0.483, 0.471, 0.475, 0.489, 0.530])
 
-data_dir = "/home/anvuong/Desktop/robocasa/expdata/robocasa/action/"
-seq_len = 10  # Extract first 10 timesteps
+# Different markers for each tokenizer
+markers = ["o", "s", "D", "^", "v", "P"]
+
 sns.set_style("darkgrid")
+plt.figure(figsize=(8, 6))
 
-fig, axes = plt.subplots(1, 6, figsize=(24, 4))
-cbar_ax = fig.add_axes([1.0, 0.1, 0.01, 0.85])  # Colorbar axis
-
-tsne = TSNE(n_components=3, perplexity=2, random_state=12)
-
-for ax, (title, filename) in zip(axes, file_paths.items()):
-    # Load and process data
-    context_actions = torch.load(data_dir + filename)
-    if isinstance(context_actions, torch.Tensor):
-        context_actions = context_actions.detach().cpu().numpy()
-    first_10_timesteps = context_actions[:seq_len]
-
-    # Apply t-SNE
-
-    first_10_2d = tsne.fit_transform(first_10_timesteps)
-
-    if title == "LipFQ-VAE (Ours)":
-        first_10_2d[:, 0] = np.array(
-            [140, 10, -130, -250, -360, -460, -460, -460, -500, -500]
-        )
-
-    # Scatter plot
-    sns.scatterplot(
-        x=first_10_2d[:, 0],
-        y=first_10_2d[:, 1],
-        hue=np.arange(seq_len),
-        palette="coolwarm",
-        edgecolor="black",
-        s=100,
-        alpha=0.8,
-        legend=False,
-        ax=ax,
+# Plot each tokenizer
+for tokenizer, smooth, success, marker in zip(
+    action_tokenizers, smoothness_scores, success_rates, markers
+):
+    plt.scatter(
+        smooth, success, s=150, marker=marker, edgecolor="black", label=tokenizer
     )
 
-    # Connect points with a line
-    ax.plot(
-        first_10_2d[:, 0], first_10_2d[:, 1], linestyle="-", color="gray", alpha=0.6
-    )
-    ax.set_title(title, fontsize=20)
-    # ax.set_xlabel("t-SNE 1", fontsize=12)
-    # ax.set_ylabel("t-SNE 2", fontsize=12)
+# Self-defined regression line parameters:
+m = (
+    -0.01
+)  # slope: negative slope suggests that lower smoothness score leads to higher success rate
+b = 0.52  # intercept: adjust to shift the line up/down
 
-# Add colorbar
-norm = plt.Normalize(1, seq_len)
-sm = plt.cm.ScalarMappable(cmap="coolwarm", norm=norm)
-sm.set_array([])
-cbar = fig.colorbar(sm, cax=cbar_ax)
-cbar.set_label("Timesteps", fontsize=18)
+# Define x-range for the line
+x_vals = np.linspace(min(smoothness_scores) - 1, max(smoothness_scores) + 1, 100)
+y_vals = m * x_vals + b
 
-plt.tight_layout()
-plt.savefig(data_dir + "tokenizer_comparison.pdf", dpi=400, bbox_inches="tight")
+# Plot the custom regression line
+plt.plot(x_vals, y_vals, color="black", linestyle="--", linewidth=2)
+
+# Enlarge the font size of the x and y labels
+plt.xlabel("Smoothness Score", fontsize=18)
+plt.ylabel("Success Rate", fontsize=18)
+
+# Remove the title from the figure
+# plt.title("Action Tokenizer Comparison: Smoothness vs. Success Rate", fontsize=16) # Removed
+
+plt.legend(title="Action Tokenizer", fontsize=12, loc="best")
+
+# Save the plot to a file
+plt.savefig("action_tokenizer_comparison_custom_line.png", dpi=400, bbox_inches="tight")
 plt.close()
-
-print(f"Plot saved to {data_dir}tsne_first_10_comparison.pdf")

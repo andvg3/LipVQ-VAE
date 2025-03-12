@@ -32,14 +32,14 @@ from tianshou.env import SubprocVectorEnv
 def get_exp_dir(config, auto_remove_exp_dir=False):
     """
     Create experiment directory from config. If an identical experiment directory
-    exists and @auto_remove_exp_dir is False (default), the function will prompt 
+    exists and @auto_remove_exp_dir is False (default), the function will prompt
     the user on whether to remove and replace it, or keep the existing one and
     add a new subdirectory with the new timestamp for the current run.
 
     Args:
         auto_remove_exp_dir (bool): if True, automatically remove the existing experiment
             folder if it exists at the same path.
-    
+
     Returns:
         log_dir (str): path to created log directory (sub-folder in experiment directory)
         output_dir (str): path to created models directory (sub-folder in experiment directory)
@@ -49,7 +49,7 @@ def get_exp_dir(config, auto_remove_exp_dir=False):
     """
     # timestamp for directory names
     t_now = time.time()
-    time_str = datetime.datetime.fromtimestamp(t_now).strftime('%Y%m%d%H%M%S')
+    time_str = datetime.datetime.fromtimestamp(t_now).strftime("%Y%m%d%H%M%S")
 
     # create directory for where to dump model parameters, tensorboard logs, and videos
     base_output_dir = os.path.expanduser(config.train.output_dir)
@@ -59,7 +59,11 @@ def get_exp_dir(config, auto_remove_exp_dir=False):
     base_output_dir = os.path.join(base_output_dir, config.experiment.name)
     if os.path.exists(base_output_dir):
         if not auto_remove_exp_dir:
-            ans = input("WARNING: model directory ({}) already exists! \noverwrite? (y/n)\n".format(base_output_dir))
+            ans = input(
+                "WARNING: model directory ({}) already exists! \noverwrite? (y/n)\n".format(
+                    base_output_dir
+                )
+            )
         else:
             ans = "y"
         if ans == "y":
@@ -83,7 +87,7 @@ def get_exp_dir(config, auto_remove_exp_dir=False):
     # vis directory
     vis_dir = os.path.join(base_output_dir, time_str, "vis")
     os.makedirs(vis_dir)
-    
+
     return log_dir, output_dir, video_dir, vis_dir
 
 
@@ -105,14 +109,23 @@ def load_data_for_training(config, obs_keys, lang_encoder=None):
     train_filter_by_attribute = config.train.hdf5_filter_key
     valid_filter_by_attribute = config.train.hdf5_validation_filter_key
     if valid_filter_by_attribute is not None:
-        assert config.experiment.validate, "specified validation filter key {}, but config.experiment.validate is not set".format(valid_filter_by_attribute)
+        assert (
+            config.experiment.validate
+        ), "specified validation filter key {}, but config.experiment.validate is not set".format(
+            valid_filter_by_attribute
+        )
 
     # load the dataset into memory
     if config.experiment.validate:
-        assert not config.train.hdf5_normalize_obs, "no support for observation normalization with validation data yet"
-        assert (train_filter_by_attribute is not None) and (valid_filter_by_attribute is not None), \
-            "did not specify filter keys corresponding to train and valid split in dataset" \
+        assert (
+            not config.train.hdf5_normalize_obs
+        ), "no support for observation normalization with validation data yet"
+        assert (train_filter_by_attribute is not None) and (
+            valid_filter_by_attribute is not None
+        ), (
+            "did not specify filter keys corresponding to train and valid split in dataset"
             " - please fill config.train.hdf5_filter_key and config.train.hdf5_validation_filter_key"
+        )
         train_demo_keys = FileUtils.get_demos_for_filter_key(
             hdf5_path=os.path.expanduser(config.train.data),
             filter_key=train_filter_by_attribute,
@@ -121,21 +134,25 @@ def load_data_for_training(config, obs_keys, lang_encoder=None):
             hdf5_path=os.path.expanduser(config.train.data),
             filter_key=valid_filter_by_attribute,
         )
-        assert set(train_demo_keys).isdisjoint(set(valid_demo_keys)), "training demonstrations overlap with " \
-            "validation demonstrations!"
+        assert set(train_demo_keys).isdisjoint(set(valid_demo_keys)), (
+            "training demonstrations overlap with " "validation demonstrations!"
+        )
         train_dataset = dataset_factory(
-            config, obs_keys,
+            config,
+            obs_keys,
             filter_by_attribute=train_filter_by_attribute,
             lang_encoder=lang_encoder,
         )
         valid_dataset = dataset_factory(
-            config, obs_keys,
+            config,
+            obs_keys,
             filter_by_attribute=valid_filter_by_attribute,
             lang_encoder=lang_encoder,
         )
     else:
         train_dataset = dataset_factory(
-            config, obs_keys,
+            config,
+            obs_keys,
             filter_by_attribute=train_filter_by_attribute,
             lang_encoder=lang_encoder,
         )
@@ -144,7 +161,9 @@ def load_data_for_training(config, obs_keys, lang_encoder=None):
     return train_dataset, valid_dataset
 
 
-def dataset_factory(config, obs_keys, filter_by_attribute=None, dataset_path=None, lang_encoder=None):
+def dataset_factory(
+    config, obs_keys, filter_by_attribute=None, dataset_path=None, lang_encoder=None
+):
     """
     Create a SequenceDataset instance to pass to a torch DataLoader.
 
@@ -172,7 +191,7 @@ def dataset_factory(config, obs_keys, filter_by_attribute=None, dataset_path=Non
         action_keys=config.train.action_keys,
         dataset_keys=config.train.dataset_keys,
         action_config=config.train.action_config,
-        load_next_obs=config.train.hdf5_load_next_obs, # whether to load next observations (s') from dataset
+        load_next_obs=config.train.hdf5_load_next_obs,  # whether to load next observations (s') from dataset
         frame_stack=config.train.frame_stack,
         seq_length=config.train.seq_length,
         pad_frame_stack=config.train.pad_frame_stack,
@@ -188,7 +207,9 @@ def dataset_factory(config, obs_keys, filter_by_attribute=None, dataset_path=Non
     )
 
     ds_kwargs["hdf5_path"] = [ds_cfg["path"] for ds_cfg in config.train.data]
-    ds_kwargs["filter_by_attribute"] = [ds_cfg.get("filter_key", filter_by_attribute) for ds_cfg in config.train.data]
+    ds_kwargs["filter_by_attribute"] = [
+        ds_cfg.get("filter_key", filter_by_attribute) for ds_cfg in config.train.data
+    ]
     ds_weights = [ds_cfg.get("weight", 1.0) for ds_cfg in config.train.data]
     ds_langs = [ds_cfg.get("lang", None) for ds_cfg in config.train.data]
 
@@ -218,7 +239,7 @@ def get_dataset(
 ):
     ds_list = []
     for i in range(len(ds_weights)):
-        
+
         ds_kwargs_copy = deepcopy(ds_kwargs)
 
         keys = ["hdf5_path", "filter_by_attribute"]
@@ -227,9 +248,9 @@ def get_dataset(
             ds_kwargs_copy[k] = ds_kwargs[k][i]
 
         ds_kwargs_copy["dataset_lang"] = ds_langs[i]
-        
+
         ds_list.append(ds_class(**ds_kwargs_copy))
-    
+
     if len(ds_weights) == 1:
         ds = ds_list[0]
     else:
@@ -250,23 +271,21 @@ def batchify_obs(obs_list):
     TODO: add comments
     """
     keys = list(obs_list[0].keys())
-    obs = {
-        k: np.stack([obs_list[i][k] for i in range(len(obs_list))]) for k in keys
-    }
-    
+    obs = {k: np.stack([obs_list[i][k] for i in range(len(obs_list))]) for k in keys}
+
     return obs
 
 
 def run_rollout(
-        policy, 
-        env, 
-        horizon,
-        use_goals=False,
-        render=False,
-        video_writer=None,
-        video_skip=5,
-        terminate_on_success=False,
-    ):
+    policy,
+    env,
+    horizon,
+    use_goals=False,
+    render=False,
+    video_writer=None,
+    video_skip=5,
+    terminate_on_success=False,
+):
     """
     Runs a rollout in an environment with the current network parameters.
 
@@ -281,7 +300,7 @@ def run_rollout(
 
         render (bool): if True, render the rollout to the screen
 
-        video_writer (imageio Writer instance): if not None, use video writer object to append frames at 
+        video_writer (imageio Writer instance): if not None, use video writer object to append frames at
             rate given by @video_skip
 
         video_skip (int): how often to write video frame
@@ -292,7 +311,11 @@ def run_rollout(
         results (dict): dictionary containing return, success rate, etc.
     """
     assert isinstance(policy, RolloutPolicy)
-    assert isinstance(env, EnvBase) or isinstance(env, EnvWrapper) or isinstance(env, SubprocVectorEnv)
+    assert (
+        isinstance(env, EnvBase)
+        or isinstance(env, EnvWrapper)
+        or isinstance(env, SubprocVectorEnv)
+    )
 
     batched = isinstance(env, SubprocVectorEnv)
 
@@ -308,7 +331,7 @@ def run_rollout(
     video_count = 0  # video frame counter
 
     rews = []
-    success = None #{ k: False for k in env.is_success() } # success metrics
+    success = None  # { k: False for k in env.is_success() } # success metrics
 
     if batched:
         end_step = [None for _ in range(len(env))]
@@ -319,15 +342,15 @@ def run_rollout(
         video_frames = [[] for _ in range(len(env))]
     else:
         video_frames = []
-    
-    for step_i in range(horizon): #LogUtils.tqdm(range(horizon)):
+
+    for step_i in range(horizon):  # LogUtils.tqdm(range(horizon)):
         # get action from policy
         if batched:
             policy_ob = batchify_obs(ob_dict)
-            ac = policy(ob=policy_ob, goal=goal_dict, batched=True) #, return_ob=True)
+            ac = policy(ob=policy_ob, goal=goal_dict, batched=True)  # , return_ob=True)
         else:
             policy_ob = ob_dict
-            ac = policy(ob=policy_ob, goal=goal_dict) #, return_ob=True)
+            ac = policy(ob=policy_ob, goal=goal_dict)  # , return_ob=True)
 
         # play action
         ob_dict, r, done, info = env.step(ac)
@@ -341,8 +364,12 @@ def run_rollout(
 
         # cur_success_metrics = env.is_success()
         if batched:
-            cur_success_metrics = TensorUtils.list_of_flat_dict_to_dict_of_list([info[i]["is_success"] for i in range(len(info))])
-            cur_success_metrics = {k: np.array(v) for (k, v) in cur_success_metrics.items()}
+            cur_success_metrics = TensorUtils.list_of_flat_dict_to_dict_of_list(
+                [info[i]["is_success"] for i in range(len(info))]
+            )
+            cur_success_metrics = {
+                k: np.array(v) for (k, v) in cur_success_metrics.items()
+            }
         else:
             cur_success_metrics = info["is_success"]
 
@@ -357,19 +384,21 @@ def run_rollout(
             if video_count % video_skip == 0:
                 if batched:
                     # frames = env.render(mode="rgb_array", height=video_height, width=video_width)
-                    
+
                     frames = []
                     policy_ob = deepcopy(policy_ob)
                     for env_i in range(len(env)):
                         cam_imgs = []
-                        for im_name in ["robot0_agentview_left_image", "robot0_agentview_right_image", "robot0_eye_in_hand_image"]:
-                            im = TensorUtils.to_numpy(
-                                policy_ob[im_name][env_i, -1]
-                            )
+                        for im_name in [
+                            "robot0_agentview_left_image",
+                            "robot0_agentview_right_image",
+                            "robot0_eye_in_hand_image",
+                        ]:
+                            im = TensorUtils.to_numpy(policy_ob[im_name][env_i, -1])
                             im = np.transpose(im, (1, 2, 0))
                             if policy_ob.get("ret", None) is not None:
                                 im_ret = TensorUtils.to_numpy(
-                                    policy_ob["ret"]["obs"][im_name][env_i,:,-1]
+                                    policy_ob["ret"]["obs"][im_name][env_i, :, -1]
                                 )
                                 im_ret = np.transpose(im_ret, (0, 2, 3, 1))
                                 im = np.concatenate((im, *im_ret), axis=0)
@@ -377,13 +406,13 @@ def run_rollout(
                         frame = np.concatenate(cam_imgs, axis=1)
                         frame = (frame * 255.0).astype(np.uint8)
                         frames.append(frame)
-                    
+
                     for env_i in range(len(env)):
                         frame = frames[env_i]
                         video_frames[env_i].append(frame)
                 else:
                     frame = env.render(mode="rgb_array", height=512, width=512)
-                    
+
                     # cam_imgs = []
                     # for im_name in ["robot0_eye_in_hand_image", "robot0_agentview_right_image", "robot0_agentview_left_image"]:
                     #     im_input = TensorUtils.to_numpy(
@@ -408,14 +437,13 @@ def run_rollout(
             for env_i in range(len(env)):
                 if end_step[env_i] is not None:
                     continue
-                
+
                 if done[env_i] or (terminate_on_success and success["task"][env_i]):
                     end_step[env_i] = step_i
         else:
             if done or (terminate_on_success and success["task"]):
                 end_step = step_i
                 break
-
 
     if video_writer is not None:
         if batched:
@@ -431,16 +459,16 @@ def run_rollout(
         rews = np.array(rews)
         for env_i in range(len(env)):
             end_step_env_i = end_step[env_i] or step_i
-            total_reward[env_i] = np.sum(rews[:end_step_env_i+1, env_i])
+            total_reward[env_i] = np.sum(rews[: end_step_env_i + 1, env_i])
             end_step[env_i] = end_step_env_i
-        
+
         results["Return"] = total_reward
         results["Horizon"] = np.array(end_step) + 1
         results["Success_Rate"] = success["task"].astype(float)
     else:
         end_step = end_step or step_i
-        total_reward = np.sum(rews[:end_step + 1])
-        
+        total_reward = np.sum(rews[: end_step + 1])
+
         results["Return"] = total_reward
         results["Horizon"] = end_step + 1
         results["Success_Rate"] = float(success["task"])
@@ -457,16 +485,16 @@ def run_rollout(
 
 
 def icl_run_rollout(
-        policy, 
-        env, 
-        horizon,
-        context_batch,
-        use_goals=False,
-        render=False,
-        video_writer=None,
-        video_skip=5,
-        terminate_on_success=False,
-    ):
+    policy,
+    env,
+    horizon,
+    context_batch,
+    use_goals=False,
+    render=False,
+    video_writer=None,
+    video_skip=5,
+    terminate_on_success=False,
+):
     """
     Runs a rollout in an environment with the current network parameters.
 
@@ -481,7 +509,7 @@ def icl_run_rollout(
 
         render (bool): if True, render the rollout to the screen
 
-        video_writer (imageio Writer instance): if not None, use video writer object to append frames at 
+        video_writer (imageio Writer instance): if not None, use video writer object to append frames at
             rate given by @video_skip
 
         video_skip (int): how often to write video frame
@@ -492,7 +520,11 @@ def icl_run_rollout(
         results (dict): dictionary containing return, success rate, etc.
     """
     assert isinstance(policy, ICLRolloutPolicy)
-    assert isinstance(env, EnvBase) or isinstance(env, EnvWrapper) or isinstance(env, SubprocVectorEnv)
+    assert (
+        isinstance(env, EnvBase)
+        or isinstance(env, EnvWrapper)
+        or isinstance(env, SubprocVectorEnv)
+    )
 
     batched = isinstance(env, SubprocVectorEnv)
 
@@ -508,7 +540,7 @@ def icl_run_rollout(
     video_count = 0  # video frame counter
 
     rews = []
-    success = None #{ k: False for k in env.is_success() } # success metrics
+    success = None  # { k: False for k in env.is_success() } # success metrics
 
     if batched:
         end_step = [None for _ in range(len(env))]
@@ -519,15 +551,17 @@ def icl_run_rollout(
         video_frames = [[] for _ in range(len(env))]
     else:
         video_frames = []
-    
-    for step_i in range(horizon): #LogUtils.tqdm(range(horizon)):
+
+    for step_i in range(horizon):  # LogUtils.tqdm(range(horizon)):
         # get action from policy
         if batched:
             policy_ob = batchify_obs(ob_dict)
-            ac = policy(ob=policy_ob, goal=goal_dict, batched=True) #, return_ob=True)
+            ac = policy(ob=policy_ob, goal=goal_dict, batched=True)  # , return_ob=True)
         else:
             policy_ob = ob_dict
-            ac = policy(ob=policy_ob, context_batch=context_batch, goal=goal_dict) #, return_ob=True)
+            ac = policy(
+                ob=policy_ob, context_batch=context_batch, goal=goal_dict
+            )  # , return_ob=True)
 
         # play action
         ob_dict, r, done, info = env.step(ac)
@@ -541,8 +575,12 @@ def icl_run_rollout(
 
         # cur_success_metrics = env.is_success()
         if batched:
-            cur_success_metrics = TensorUtils.list_of_flat_dict_to_dict_of_list([info[i]["is_success"] for i in range(len(info))])
-            cur_success_metrics = {k: np.array(v) for (k, v) in cur_success_metrics.items()}
+            cur_success_metrics = TensorUtils.list_of_flat_dict_to_dict_of_list(
+                [info[i]["is_success"] for i in range(len(info))]
+            )
+            cur_success_metrics = {
+                k: np.array(v) for (k, v) in cur_success_metrics.items()
+            }
         else:
             cur_success_metrics = info["is_success"]
 
@@ -557,19 +595,21 @@ def icl_run_rollout(
             if video_count % video_skip == 0:
                 if batched:
                     # frames = env.render(mode="rgb_array", height=video_height, width=video_width)
-                    
+
                     frames = []
                     policy_ob = deepcopy(policy_ob)
                     for env_i in range(len(env)):
                         cam_imgs = []
-                        for im_name in ["robot0_agentview_left_image", "robot0_agentview_right_image", "robot0_eye_in_hand_image"]:
-                            im = TensorUtils.to_numpy(
-                                policy_ob[im_name][env_i, -1]
-                            )
+                        for im_name in [
+                            "robot0_agentview_left_image",
+                            "robot0_agentview_right_image",
+                            "robot0_eye_in_hand_image",
+                        ]:
+                            im = TensorUtils.to_numpy(policy_ob[im_name][env_i, -1])
                             im = np.transpose(im, (1, 2, 0))
                             if policy_ob.get("ret", None) is not None:
                                 im_ret = TensorUtils.to_numpy(
-                                    policy_ob["ret"]["obs"][im_name][env_i,:,-1]
+                                    policy_ob["ret"]["obs"][im_name][env_i, :, -1]
                                 )
                                 im_ret = np.transpose(im_ret, (0, 2, 3, 1))
                                 im = np.concatenate((im, *im_ret), axis=0)
@@ -577,13 +617,13 @@ def icl_run_rollout(
                         frame = np.concatenate(cam_imgs, axis=1)
                         frame = (frame * 255.0).astype(np.uint8)
                         frames.append(frame)
-                    
+
                     for env_i in range(len(env)):
                         frame = frames[env_i]
                         video_frames[env_i].append(frame)
                 else:
                     frame = env.render(mode="rgb_array", height=512, width=512)
-                    
+
                     # cam_imgs = []
                     # for im_name in ["robot0_eye_in_hand_image", "robot0_agentview_right_image", "robot0_agentview_left_image"]:
                     #     im_input = TensorUtils.to_numpy(
@@ -608,14 +648,13 @@ def icl_run_rollout(
             for env_i in range(len(env)):
                 if end_step[env_i] is not None:
                     continue
-                
+
                 if done[env_i] or (terminate_on_success and success["task"][env_i]):
                     end_step[env_i] = step_i
         else:
             if done or (terminate_on_success and success["task"]):
                 end_step = step_i
                 break
-
 
     if video_writer is not None:
         if batched:
@@ -631,16 +670,16 @@ def icl_run_rollout(
         rews = np.array(rews)
         for env_i in range(len(env)):
             end_step_env_i = end_step[env_i] or step_i
-            total_reward[env_i] = np.sum(rews[:end_step_env_i+1, env_i])
+            total_reward[env_i] = np.sum(rews[: end_step_env_i + 1, env_i])
             end_step[env_i] = end_step_env_i
-        
+
         results["Return"] = total_reward
         results["Horizon"] = np.array(end_step) + 1
         results["Success_Rate"] = success["task"].astype(float)
     else:
         end_step = end_step or step_i
-        total_reward = np.sum(rews[:end_step + 1])
-        
+        total_reward = np.sum(rews[: end_step + 1])
+
         results["Return"] = total_reward
         results["Horizon"] = end_step + 1
         results["Success_Rate"] = float(success["task"])
@@ -657,21 +696,21 @@ def icl_run_rollout(
 
 
 def rollout_with_stats(
-        policy,
-        envs,
-        horizon,
-        use_goals=False,
-        num_episodes=None,
-        render=False,
-        video_dir=None,
-        video_path=None,
-        epoch=None,
-        video_skip=5,
-        terminate_on_success=False,
-        verbose=False,
-        del_envs_after_rollouts=False,
-        data_logger=None,
-    ):
+    policy,
+    envs,
+    horizon,
+    use_goals=False,
+    num_episodes=None,
+    render=False,
+    video_dir=None,
+    video_path=None,
+    epoch=None,
+    video_skip=5,
+    terminate_on_success=False,
+    verbose=False,
+    del_envs_after_rollouts=False,
+    data_logger=None,
+):
     """
     A helper function used in the train loop to conduct evaluation rollouts per environment
     and summarize the results.
@@ -704,10 +743,10 @@ def rollout_with_stats(
         terminate_on_success (bool): if True, terminate episode early as soon as a success is encountered
 
         verbose (bool): if True, print results of each rollout
-    
+
     Returns:
-        all_rollout_logs (dict): dictionary of rollout statistics (e.g. return, success rate, ...) 
-            averaged across all rollouts 
+        all_rollout_logs (dict): dictionary of rollout statistics (e.g. return, success rate, ...)
+            averaged across all rollouts
 
         video_paths (dict): path to rollout videos for each environment
     """
@@ -716,7 +755,9 @@ def rollout_with_stats(
     all_rollout_logs = OrderedDict()
 
     # handle paths and create writers for video writing
-    assert (video_path is None) or (video_dir is None), "rollout_with_stats: can't specify both video path and dir"
+    assert (video_path is None) or (
+        video_dir is None
+    ), "rollout_with_stats: can't specify both video path and dir"
     write_video = (video_path is not None) or (video_dir is not None)
 
     if isinstance(horizon, list):
@@ -734,18 +775,23 @@ def rollout_with_stats(
 
         if video_dir is not None:
             # video is written per env
-            video_str = "_epoch_{}.mp4".format(epoch) if epoch is not None else ".mp4" 
+            video_str = "_epoch_{}.mp4".format(epoch) if epoch is not None else ".mp4"
             video_path = os.path.join(video_dir, "{}{}".format(env_name, video_str))
             video_writer = imageio.get_writer(video_path, fps=20)
-            
+
         env_video_writer = None
         if write_video:
             print("video writes to " + video_path)
             env_video_writer = imageio.get_writer(video_path, fps=20)
 
-        print("rollout: env={}, horizon={}, use_goals={}, num_episodes={}".format(
-            env_name, horizon, use_goals, num_episodes,
-        ))
+        print(
+            "rollout: env={}, horizon={}, use_goals={}, num_episodes={}".format(
+                env_name,
+                horizon,
+                use_goals,
+                num_episodes,
+            )
+        )
         rollout_logs = []
         if batched:
             iterator = range(0, num_episodes, len(env))
@@ -772,23 +818,31 @@ def rollout_with_stats(
                 print("Rollout exception at episode number {}!".format(ep_i))
                 print(traceback.format_exc())
                 break
-            
+
             if batched:
-                rollout_info["time"] = [(time.time() - rollout_timestamp) / len(env)] * len(env)
+                rollout_info["time"] = [
+                    (time.time() - rollout_timestamp) / len(env)
+                ] * len(env)
 
                 for env_i in range(len(env)):
-                    rollout_logs.append({k: rollout_info[k][env_i] for k in rollout_info})
+                    rollout_logs.append(
+                        {k: rollout_info[k][env_i] for k in rollout_info}
+                    )
                 num_success += np.sum(rollout_info["Success_Rate"])
             else:
                 rollout_info["time"] = time.time() - rollout_timestamp
 
                 rollout_logs.append(rollout_info)
                 num_success += rollout_info["Success_Rate"]
-            
+
             if verbose:
                 if batched:
                     raise NotImplementedError
-                print("Episode {}, horizon={}, num_success={}".format(ep_i + 1, horizon, num_success))
+                print(
+                    "Episode {}, horizon={}, num_success={}".format(
+                        ep_i + 1, horizon, num_success
+                    )
+                )
                 print(json.dumps(rollout_info, sort_keys=True, indent=4))
 
         if video_dir is not None:
@@ -797,29 +851,47 @@ def rollout_with_stats(
 
         # average metric across all episodes
         if len(rollout_logs) > 0:
-            rollout_logs = dict((k, [rollout_logs[i][k] for i in range(len(rollout_logs))]) for k in rollout_logs[0])
+            rollout_logs = dict(
+                (k, [rollout_logs[i][k] for i in range(len(rollout_logs))])
+                for k in rollout_logs[0]
+            )
             rollout_logs_mean = dict((k, np.mean(v)) for k, v in rollout_logs.items())
-            rollout_logs_mean["Time_Episode"] = np.sum(rollout_logs["time"]) / 60. # total time taken for rollouts in minutes
+            rollout_logs_mean["Time_Episode"] = (
+                np.sum(rollout_logs["time"]) / 60.0
+            )  # total time taken for rollouts in minutes
             all_rollout_logs[env_name] = rollout_logs_mean
         else:
-            all_rollout_logs[env_name] = {"Time_Episode": -1, "Return": -1, "Success_Rate": -1, "time": -1}
+            all_rollout_logs[env_name] = {
+                "Time_Episode": -1,
+                "Return": -1,
+                "Success_Rate": -1,
+                "time": -1,
+            }
 
-        if del_envs_after_rollouts:
-            # delete the environment after use
-            env.env.env.close()
-            del env
+        # if del_envs_after_rollouts:
+        #     # delete the environment after use
+        #     env.env.env.close()
+        #     del env
 
         if data_logger is not None:
             # summarize results from rollouts to tensorboard and terminal
             rollout_logs = all_rollout_logs[env_name]
             for k, v in rollout_logs.items():
                 if k.startswith("Time_"):
-                    data_logger.record("Timing_Stats/Rollout_{}_{}".format(env_name, k[5:]), v, epoch)
+                    data_logger.record(
+                        "Timing_Stats/Rollout_{}_{}".format(env_name, k[5:]), v, epoch
+                    )
                 else:
-                    data_logger.record("Rollout/{}/{}".format(k, env_name), v, epoch, log_stats=True)
+                    data_logger.record(
+                        "Rollout/{}/{}".format(k, env_name), v, epoch, log_stats=True
+                    )
 
-            print("\nEpoch {} Rollouts took {}s (avg) with results:".format(epoch, rollout_logs["time"]))
-            print('Env: {}'.format(env_name))
+            print(
+                "\nEpoch {} Rollouts took {}s (avg) with results:".format(
+                    epoch, rollout_logs["time"]
+                )
+            )
+            print("Env: {}".format(env_name))
             print(json.dumps(rollout_logs, sort_keys=True, indent=4))
 
     if video_path is not None:
@@ -830,22 +902,22 @@ def rollout_with_stats(
 
 
 def icl_rollout_with_stats(
-        policy,
-        envs,
-        horizon,
-        use_goals=False,
-        context_batch=None,
-        num_episodes=None,
-        render=False,
-        video_dir=None,
-        video_path=None,
-        epoch=None,
-        video_skip=5,
-        terminate_on_success=False,
-        verbose=False,
-        del_envs_after_rollouts=False,
-        data_logger=None,
-    ):
+    policy,
+    envs,
+    horizon,
+    use_goals=False,
+    context_batch=None,
+    num_episodes=None,
+    render=False,
+    video_dir=None,
+    video_path=None,
+    epoch=None,
+    video_skip=5,
+    terminate_on_success=False,
+    verbose=False,
+    del_envs_after_rollouts=False,
+    data_logger=None,
+):
     """
     A helper function used in the train loop to conduct evaluation rollouts per environment
     and summarize the results.
@@ -878,10 +950,10 @@ def icl_rollout_with_stats(
         terminate_on_success (bool): if True, terminate episode early as soon as a success is encountered
 
         verbose (bool): if True, print results of each rollout
-    
+
     Returns:
-        all_rollout_logs (dict): dictionary of rollout statistics (e.g. return, success rate, ...) 
-            averaged across all rollouts 
+        all_rollout_logs (dict): dictionary of rollout statistics (e.g. return, success rate, ...)
+            averaged across all rollouts
 
         video_paths (dict): path to rollout videos for each environment
     """
@@ -890,7 +962,9 @@ def icl_rollout_with_stats(
     all_rollout_logs = OrderedDict()
 
     # handle paths and create writers for video writing
-    assert (video_path is None) or (video_dir is None), "rollout_with_stats: can't specify both video path and dir"
+    assert (video_path is None) or (
+        video_dir is None
+    ), "rollout_with_stats: can't specify both video path and dir"
     write_video = (video_path is not None) or (video_dir is not None)
 
     if isinstance(horizon, list):
@@ -908,18 +982,23 @@ def icl_rollout_with_stats(
 
         if video_dir is not None:
             # video is written per env
-            video_str = "_epoch_{}.mp4".format(epoch) if epoch is not None else ".mp4" 
+            video_str = "_epoch_{}.mp4".format(epoch) if epoch is not None else ".mp4"
             video_path = os.path.join(video_dir, "{}{}".format(env_name, video_str))
             video_writer = imageio.get_writer(video_path, fps=20)
-            
+
         env_video_writer = None
         if write_video:
             print("video writes to " + video_path)
             env_video_writer = imageio.get_writer(video_path, fps=20)
 
-        print("rollout: env={}, horizon={}, use_goals={}, num_episodes={}".format(
-            env_name, horizon, use_goals, num_episodes,
-        ))
+        print(
+            "rollout: env={}, horizon={}, use_goals={}, num_episodes={}".format(
+                env_name,
+                horizon,
+                use_goals,
+                num_episodes,
+            )
+        )
         rollout_logs = []
         if batched:
             iterator = range(0, num_episodes, len(env))
@@ -947,23 +1026,31 @@ def icl_rollout_with_stats(
                 print("Rollout exception at episode number {}!".format(ep_i))
                 print(traceback.format_exc())
                 break
-            
+
             if batched:
-                rollout_info["time"] = [(time.time() - rollout_timestamp) / len(env)] * len(env)
+                rollout_info["time"] = [
+                    (time.time() - rollout_timestamp) / len(env)
+                ] * len(env)
 
                 for env_i in range(len(env)):
-                    rollout_logs.append({k: rollout_info[k][env_i] for k in rollout_info})
+                    rollout_logs.append(
+                        {k: rollout_info[k][env_i] for k in rollout_info}
+                    )
                 num_success += np.sum(rollout_info["Success_Rate"])
             else:
                 rollout_info["time"] = time.time() - rollout_timestamp
 
                 rollout_logs.append(rollout_info)
                 num_success += rollout_info["Success_Rate"]
-            
+
             if verbose:
                 if batched:
                     raise NotImplementedError
-                print("Episode {}, horizon={}, num_success={}".format(ep_i + 1, horizon, num_success))
+                print(
+                    "Episode {}, horizon={}, num_success={}".format(
+                        ep_i + 1, horizon, num_success
+                    )
+                )
                 print(json.dumps(rollout_info, sort_keys=True, indent=4))
 
         if video_dir is not None:
@@ -972,12 +1059,22 @@ def icl_rollout_with_stats(
 
         # average metric across all episodes
         if len(rollout_logs) > 0:
-            rollout_logs = dict((k, [rollout_logs[i][k] for i in range(len(rollout_logs))]) for k in rollout_logs[0])
+            rollout_logs = dict(
+                (k, [rollout_logs[i][k] for i in range(len(rollout_logs))])
+                for k in rollout_logs[0]
+            )
             rollout_logs_mean = dict((k, np.mean(v)) for k, v in rollout_logs.items())
-            rollout_logs_mean["Time_Episode"] = np.sum(rollout_logs["time"]) / 60. # total time taken for rollouts in minutes
+            rollout_logs_mean["Time_Episode"] = (
+                np.sum(rollout_logs["time"]) / 60.0
+            )  # total time taken for rollouts in minutes
             all_rollout_logs[env_name] = rollout_logs_mean
         else:
-            all_rollout_logs[env_name] = {"Time_Episode": -1, "Return": -1, "Success_Rate": -1, "time": -1}
+            all_rollout_logs[env_name] = {
+                "Time_Episode": -1,
+                "Return": -1,
+                "Success_Rate": -1,
+                "time": -1,
+            }
 
         if del_envs_after_rollouts:
             # delete the environment after use
@@ -989,12 +1086,20 @@ def icl_rollout_with_stats(
             rollout_logs = all_rollout_logs[env_name]
             for k, v in rollout_logs.items():
                 if k.startswith("Time_"):
-                    data_logger.record("Timing_Stats/Rollout_{}_{}".format(env_name, k[5:]), v, epoch)
+                    data_logger.record(
+                        "Timing_Stats/Rollout_{}_{}".format(env_name, k[5:]), v, epoch
+                    )
                 else:
-                    data_logger.record("Rollout/{}/{}".format(k, env_name), v, epoch, log_stats=True)
+                    data_logger.record(
+                        "Rollout/{}/{}".format(k, env_name), v, epoch, log_stats=True
+                    )
 
-            print("\nEpoch {} Rollouts took {}s (avg) with results:".format(epoch, rollout_logs["time"]))
-            print('Env: {}'.format(env_name))
+            print(
+                "\nEpoch {} Rollouts took {}s (avg) with results:".format(
+                    epoch, rollout_logs["time"]
+                )
+            )
+            print("Env: {}".format(env_name))
             print(json.dumps(rollout_logs, sort_keys=True, indent=4))
 
     if video_path is not None:
@@ -1005,13 +1110,13 @@ def icl_rollout_with_stats(
 
 
 def should_save_from_rollout_logs(
-        all_rollout_logs,
-        best_return,
-        best_success_rate,
-        epoch_ckpt_name,
-        save_on_best_rollout_return,
-        save_on_best_rollout_success_rate,
-    ):
+    all_rollout_logs,
+    best_return,
+    best_success_rate,
+    epoch_ckpt_name,
+    save_on_best_rollout_return,
+    save_on_best_rollout_success_rate,
+):
     """
     Helper function used during training to determine whether checkpoints and videos
     should be saved. It will modify input attributes appropriately (such as updating
@@ -1031,10 +1136,10 @@ def should_save_from_rollout_logs(
         epoch_ckpt_name (str): what to name the checkpoint file - this name might be modified
             by this function
 
-        save_on_best_rollout_return (bool): if True, should save checkpoints that achieve a 
+        save_on_best_rollout_return (bool): if True, should save checkpoints that achieve a
             new best rollout return
 
-        save_on_best_rollout_success_rate (bool): if True, should save checkpoints that achieve a 
+        save_on_best_rollout_success_rate (bool): if True, should save checkpoints that achieve a
             new best rollout success rate
 
     Returns:
@@ -1052,7 +1157,9 @@ def should_save_from_rollout_logs(
             best_return[env_name] = rollout_logs["Return"]
             if save_on_best_rollout_return:
                 # save checkpoint if achieve new best return
-                epoch_ckpt_name += "_{}_return_{}".format(env_name, best_return[env_name])
+                epoch_ckpt_name += "_{}_return_{}".format(
+                    env_name, best_return[env_name]
+                )
                 should_save_ckpt = True
                 ckpt_reason = "return"
 
@@ -1060,7 +1167,9 @@ def should_save_from_rollout_logs(
             best_success_rate[env_name] = rollout_logs["Success_Rate"]
             if save_on_best_rollout_success_rate:
                 # save checkpoint if achieve new best success rate
-                epoch_ckpt_name += "_{}_success_{}".format(env_name, best_success_rate[env_name])
+                epoch_ckpt_name += "_{}_success_{}".format(
+                    env_name, best_success_rate[env_name]
+                )
                 should_save_ckpt = True
                 ckpt_reason = "success"
 
@@ -1074,7 +1183,15 @@ def should_save_from_rollout_logs(
     )
 
 
-def save_model(model, config, env_meta, shape_meta, ckpt_path, obs_normalization_stats=None, action_normalization_stats=None):
+def save_model(
+    model,
+    config,
+    env_meta,
+    shape_meta,
+    ckpt_path,
+    obs_normalization_stats=None,
+    action_normalization_stats=None,
+):
     """
     Save model to a torch pth file.
 
@@ -1111,12 +1228,21 @@ def save_model(model, config, env_meta, shape_meta, ckpt_path, obs_normalization
         params["obs_normalization_stats"] = TensorUtils.to_list(obs_normalization_stats)
     if action_normalization_stats is not None:
         action_normalization_stats = deepcopy(action_normalization_stats)
-        params["action_normalization_stats"] = TensorUtils.to_list(action_normalization_stats)
+        params["action_normalization_stats"] = TensorUtils.to_list(
+            action_normalization_stats
+        )
     torch.save(params, ckpt_path)
     print("save checkpoint to {}".format(ckpt_path))
 
 
-def run_epoch(model, data_loader, epoch, validate=False, num_steps=None, obs_normalization_stats=None):
+def run_epoch(
+    model,
+    data_loader,
+    epoch,
+    validate=False,
+    num_steps=None,
+    obs_normalization_stats=None,
+):
     """
     Run an epoch of training or validation.
 
@@ -1170,7 +1296,9 @@ def run_epoch(model, data_loader, epoch, validate=False, num_steps=None, obs_nor
         # process batch for training
         t = time.time()
         input_batch = model.process_batch_for_training(batch)
-        input_batch = model.postprocess_batch_for_training(input_batch, obs_normalization_stats=obs_normalization_stats)
+        input_batch = model.postprocess_batch_for_training(
+            input_batch, obs_normalization_stats=obs_normalization_stats
+        )
         timing_stats["Process_Batch"].append(time.time() - t)
 
         # forward and backward pass
@@ -1196,17 +1324,17 @@ def run_epoch(model, data_loader, epoch, validate=False, num_steps=None, obs_nor
     # add in timing stats
     for k in timing_stats:
         # sum across all training steps, and convert from seconds to minutes
-        step_log_all["Time_{}".format(k)] = np.sum(timing_stats[k]) / 60.
-    step_log_all["Time_Epoch"] = (time.time() - epoch_timestamp) / 60.
+        step_log_all["Time_{}".format(k)] = np.sum(timing_stats[k]) / 60.0
+    step_log_all["Time_Epoch"] = (time.time() - epoch_timestamp) / 60.0
 
     return step_log_all
 
 
 def is_every_n_steps(interval, current_step, skip_zero=False):
     """
-    Convenient function to check whether current_step is at the interval. 
+    Convenient function to check whether current_step is at the interval.
     Returns True if current_step % interval == 0 and asserts a few corner cases (e.g., interval <= 0)
-    
+
     Args:
         interval (int): target interval
         current_step (int): current step

@@ -36,18 +36,20 @@ class LFQQuantizer(nn.Module):
 
     def forward(self, z_e):
         batch_size, latent_dim = z_e.shape  # Ensure shape consistency
+        z_e_sign = (2 * torch.sign(z_e) + 1).unsqueeze(1)  # Shape: [B, 1, latent_dim]
+        z_e_sign = torch.clamp(z_e_sign, max=1)
         z_e_expanded = z_e.unsqueeze(1)  # Shape: [B, 1, D]
         codebook_expanded = self.codebook.unsqueeze(0)  # Shape: [1, num_codes, D]
         distances = torch.norm(
-            z_e_expanded - codebook_expanded, dim=-1
+            z_e_sign * (z_e_expanded - codebook_expanded), dim=-1
         )  # Compute L2 distances
         indices = torch.argmin(distances, dim=-1)  # Get closest code
         z_q = self.codebook[indices]  # Retrieve quantized values
         return z_q, indices
 
 
-class LLFQVAE_V3(nn.Module):
-    def __init__(self, feature_dim, latent_dim, num_codes=2048, hidden_dim=128):
+class LLFQVAE_V4(nn.Module):
+    def __init__(self, feature_dim, latent_dim, num_codes=1024, hidden_dim=128):
         super().__init__()
         self.encoder = nn.Sequential(
             nn.Linear(feature_dim, 64),
@@ -88,15 +90,13 @@ if __name__ == "__main__":
     feature_dim = 12
     latent_dim = 208
     num_codes = 128
-    model = LLFQVAE_V3(feature_dim, latent_dim, num_codes).to(device)
+    model = LLFQVAE_V4(feature_dim, latent_dim, num_codes).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
     data = torch.randn(batch_size, feature_dim).to(device)
 
     for epoch in range(1000):
         optimizer.zero_grad()
         z_latent, loss = model(data)
-        print(
-            f"Epoch {epoch}: Latent Shape {z_latent.shape}, Loss {loss.item():.4f}, c_i: {model.encoder[0].ci}"
-        )
+        print(f"Epoch {epoch}: Latent Shape {z_latent.shape}, Loss {loss.item():.4f}")
         loss.backward()
         optimizer.step()
