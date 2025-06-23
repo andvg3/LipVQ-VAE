@@ -52,10 +52,14 @@ robomimic/scripts/config_gen/icl_xfmr_gen.py --name <experiment-name>
 After running this script you just need to run the command(s) outputted.
 **Note:** You can modify different types of action tokenizer in the outputted config in:
 
-<pre> **modalities:** ```json { "fast_enabled": false, "bin_enabled": false, "vq_vae_enabled": true, "ln_act_enabled": false } ``` </pre>
+```json
+"observation": "modalities": { "fast_enabled": false, "bin_enabled": false, "vq_vae_enabled": true, "ln_act_enabled": false } 
+```
+
+Change the config to your desired tokenizers to test.
 
 ### Weights
-Weight will be published soon.
+Weight are available at [this link](https://mbzuaiac-my.sharepoint.com/:u:/g/personal/an_vuong_mbzuai_ac_ae/EYkH6i1UUhxHvEJ-wtG_wg0Bmer1_uFScjOXqoI2TjVtag?e=Ze0maL).
 
 ### Evaluation
 Similar to training, run:
