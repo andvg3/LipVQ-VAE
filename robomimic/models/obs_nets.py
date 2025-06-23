@@ -44,9 +44,6 @@ from robomimic.models.obs_core import (
 
 from robomimic.models.vq_vae.backbone import VQVAE
 from robomimic.models.vq_vae.backbone_lfqvae import LFQVAE
-from robomimic.models.vq_vae.backbone_lfqvae_v2 import LLFQVAE
-from robomimic.models.vq_vae.backbone_lfqvae_v3 import LFQVAE_V3
-from robomimic.models.vq_vae.backbone_lfqvae_v4 import LLFQVAE_V3
 from robomimic.models.vq_vae.backbone_lfqvae_v5 import LLFQVAE_V4
 from robomimic.models.vq_vae.backbone_lfqvae_lipschitz import LFQVAE
 from robomimic.models.bin_action.backbone import AdaptiveBinActionEmbedding
@@ -1225,14 +1222,7 @@ class ICLObservationGroupEncoder(Module):
             # )
             # # self.action_network = LFQVAE(
             #     feature_dim=action_input_shape, latent_dim=action_output_shape
-            # )
-            # self.action_network = LLFQVAE(
-            #     feature_dim=action_input_shape, latent_dim=action_output_shape
-            # )
-            # self.action_network = LLFQVAE_V3(
-            #     feature_dim=action_input_shape, latent_dim=action_output_shape
-            # )
-            self.action_network = LLFQVAE_V4(
+            self.action_network = LLFQVAE_V4( # This is the main LipVQ-VAE action tokenizer in the paper
                 feature_dim=action_input_shape, latent_dim=action_output_shape
             )
         elif ln_act_enabled:
