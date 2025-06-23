@@ -1,26 +1,18 @@
-# RoboCasa: Large-Scale Simulation of Everyday Tasks for Generalist Robots
-<!-- ![alt text](https://github.com/UT-Austin-RPL/maple/blob/web/src/overview.png) -->
-<img src="docs/images/robocasa-banner.jpg" width="100%" />
+# Action Tokenizer Matters in In-Context Imitation Learning
 
-This is the official codebase of RoboCasa, a large-scale simulation framework for training generally capable robots to perform everyday tasks. This guide contains information about installation and setup. Please refer to the following resources for additional information:
-
-[**[Home page]**](https://robocasa.ai) &ensp; [**[Documentation]**](https://robocasa.ai/docs/introduction/overview.html) &ensp; [**[Paper]**](https://robocasa.ai/assets/robocasa_rss24.pdf)
-
--------
-## Latest updates
-* [10/31/2024] **v0.2**: using RoboSuite `v1.5` as the backend, with improved support for custom robot composition, composite controllers, more teleoperation devices, photo-realistic rendering.
+This is the official codebase of the paper "Action Tokenizer Matters in In-Context Imitation Learning."
 
 -------
 ## Installation
-RoboCasa works across all major computing platforms. The easiest way to set up is through the [Anaconda](https://www.anaconda.com/) package management system. Follow the instructions below to install:
+Below is a brief explanation for setting up RoboCasa. For further instructions, please refer to [RoboCasa](https://robocasa.ai/).
 1. Set up conda environment:
 
    ```sh
-   conda create -c conda-forge -n robocasa python=3.10
+   conda create -c conda-forge -n lipvq python=3.10
    ```
 2. Activate conda environment:
    ```sh
-   conda activate robocasa
+   conda activate lipvq
    ```
 3. Clone and setup robosuite dependency (**important: use the master branch!**):
 
@@ -33,7 +25,7 @@ RoboCasa works across all major computing platforms. The easiest way to set up i
 
    ```sh
    cd ..
-   git clone https://github.com/robocasa/robocasa
+   git clone https://github.com/andvg3/LipVQ-VAE.git
    cd robocasa
    pip install -e .
    pip install pre-commit; pre-commit install           # Optional: set up code formatter.
@@ -47,46 +39,39 @@ RoboCasa works across all major computing platforms. The easiest way to set up i
    ```
 
 -------
-## Quick start
-**(Mac users: for these scripts, prepend the "python" command with "mj": `mjpython ...`)**
+## Download Datasets
+Please refer to the [official documentation page](https://robocasa.ai/docs/introduction/overview.html) for information about tasks and assets, downloading datasets.
 
-### Explore kitchen layouts and styles
-Explore kitchen layouts (G-shaped, U-shaped, etc) and kitchen styles (mediterranean, industrial, etc):
-```
-python -m robocasa.demos.demo_kitchen_scenes
-```
+## Policy Learning
 
-### Play back sample demonstrations of tasks
-Select a task and play back a sample demonstration for the selected task:
+### Training
+Each algorithm has its own config generator script. For example for ICRT+LipVQ-VAE policy run:
 ```
-python -m robocasa.demos.demo_tasks
+robomimic/scripts/config_gen/icl_xfmr_gen.py --name <experiment-name>
 ```
+After running this script you just need to run the command(s) outputted.
+**Note:** You can modify different types of action tokenizer in the outputted config in:
 
-### Explore library of 2500+ objects
-View and interact with both human-designed and AI-generated objects:
-```
-python -m robocasa.demos.demo_objects
-```
-Note: by default this demo shows objaverse objects. To view AI-generated objects, add the flag `--obj_types aigen`.
+<pre> **modalities:** ```json { "fast_enabled": false, "bin_enabled": false, "vq_vae_enabled": true, "ln_act_enabled": false } ``` </pre>
 
-### Teleoperate the robot
-Control the robot directly, either through a keyboard controller or spacemouse. This script renders the robot semi-translucent in order to minimize occlusions and enable better visibility.
-```
-python -m robocasa.demos.demo_teleop
-```
-Note: If using spacemouse: you may need to modify the product ID to your appropriate model, setting `SPACEMOUSE_PRODUCT_ID` in `robocasa/macros_private.py`.
+### Weights
+Weight will be published soon.
 
--------
-## Tasks, datasets, policy learning, and additional use cases
-Please refer to the [documentation page](https://robocasa.ai/docs/introduction/overview.html) for information about tasks and assets, downloading datasets, policy learning, API docs, and more.
- 
+### Evaluation
+Similar to training, run:
+```
+python robomimic/scripts/config_gen/eval_ckpt.py --ckpt <ckpt-path> --name <experiment-name>
+```
+then execute the scripts on the screeen.
+
 -------
 ## Citation
+This repository is largely based on [RoboCasa](https://github.com/robocasa/robocasa). If you find our code useful, please consider citing it:
 ```bibtex
-@inproceedings{robocasa2024,
-  title={RoboCasa: Large-Scale Simulation of Everyday Tasks for Generalist Robots},
-  author={Soroush Nasiriany and Abhiram Maddukuri and Lance Zhang and Adeet Parikh and Aaron Lo and Abhishek Joshi and Ajay Mandlekar and Yuke Zhu},
-  booktitle={Robotics: Science and Systems},
-  year={2024}
+@inproceedings{vuong2025action,
+  title={Action Tokenizer Matters in In-Context Imitation Learning},
+  author={Vuong, An Dinh and Vu, Minh Nhat and An, Dong and Reid, Ian},
+  journal={IROS},
+  year={2025}
 }
 ```
