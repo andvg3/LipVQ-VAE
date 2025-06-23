@@ -1,6 +1,6 @@
 # Action Tokenizer Matters in In-Context Imitation Learning
 
-This is the official codebase of the paper "Action Tokenizer Matters in In-Context Imitation Learning."
+This is the official codebase of the IROS 2025 paper "Action Tokenizer Matters in In-Context Imitation Learning."
 
 -------
 ## Installation
